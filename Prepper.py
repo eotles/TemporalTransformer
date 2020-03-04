@@ -7,7 +7,9 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 from sklearn import metrics, calibration
+
 import sys
+import warnings
 
 
 dur_fn = "i_duration"
@@ -121,16 +123,21 @@ class tf_prepper():
             val = 0.0
     
         #TODO: investigate whether less mem usage if we use np
+        #TODO: somehow getting values larger than duration
         if st is None:
             if type(val) == list:
                 self.base_data[idx][fn] = [val]*self.durations[idx]
             else:
                 self.base_data[idx][fn] = [[val]]*self.durations[idx]
         else:
-            if type(val) == list:
-                self.base_data[idx][fn][st] = val
-            else:
-                self.base_data[idx][fn][st] = [val]
+            try:
+                if type(val) == list:
+                    self.base_data[idx][fn][st] = val
+                else:
+                    self.base_data[idx][fn][st] = [val]
+            except:
+                msg = "unable to put update base_data with (idx: %s, fn: %s, st: %s, val: val)... hint duration[idx] is: %s" %(idx, fn, st, val, self.durations[idx])
+                warnings.warn(msg)
             
     
     #TODO: input validation
@@ -194,6 +201,8 @@ class tf_prepper():
         partition_table = self.cur_man.execute_fetchall(select_cols_sql.format(cols="*", tn=Hopper.pr_tn))
         partition_lookup = {idx: partition for idx, partition in partition_table}
         partitions = set(partition_lookup.values())
+        
+        self.partition_lookup = partition_lookup
         
         #prepare X datasets
         x_dss = {partition: {} for partition in partitions}
@@ -344,8 +353,19 @@ class tf_prepper():
         
     
     def get_specific_XY(self, idx):
-        s_X = {fn: tf.convert_to_tensor([v])
-               for fn, v in self.base_data[idx].items()}
+        #s_X = {fn: tf.convert_to_tensor([v])
+        #       for fn, v in self.base_data[idx].items()}
+        s_X = {}
+        for fn, v in self.base_data[idx].items():
+            if fn == Hopper.pk_cn:
+                output_types = tf.string
+            elif fn==dur_fn or self.config[fn]["type"]=="hdc":
+                output_types = tf.int32
+            else:
+                output_types = tf.float32
+            s_X[fn] = tf.convert_to_tensor([v], dtype=output_types)
+        
+        
         s_Y = {lb: tf.convert_to_tensor(v)
                for lb, v in self.labels[idx].items()}
         return(s_X, s_Y)
@@ -597,19 +617,19 @@ class population():
         sys.stdout.write("Init")
         predictions = {}
         for i, (_X, _Y) in enumerate(self.ds):
-            _Y_hat = model.predict(_X)
+            _Y_hat = model.predict_on_batch(_X)
             idxs = _X["i_id"].numpy()[:, 0, 0]
             idxs = idxs.astype('U')
 
             if len(self.tfp.label_fns) == 1:
-                for idx, idx_Y_hat, in zip(idxs, _Y_hat):
-                    predictions[idx] = {self.tfp.label_fns[0]: idx_Y_hat}
+                for idx, idx_Y_hat, in zip(idxs, _Y_hat[0]):
+                    predictions[idx] = {self.tfp.label_fns[0]: idx_Y_hat.numpy()}
             else:
                 for lb_i, lb in enumerate(self.tfp.label_fns):
                     for idx, idx_Y_hat, in zip(idxs, _Y_hat[lb_i]):
                         if idx not in predictions:
                             predictions[idx] = {}
-                        predictions[idx][lb] = idx_Y_hat
+                        predictions[idx][lb] = idx_Y_hat.numpy()
 
             sys.stdout.write('\r')
             sys.stdout.write("Step: %s" %(i+1))

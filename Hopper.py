@@ -640,10 +640,10 @@ class dbms():
             data = csv.reader(csv_file, dialect=dialect, **fmtparams)
             self._data_to_fvm(fvm, data)
         
-    
+    #TODO: fix iterable data
     def create_fvm_with_data(self, tc, iterable_data):
         fvm = self._create_fvm(tc)
-        self._data_to_fvm(fvm, data)
+        self._data_to_fvm(fvm, iterable_data)
     
 
     def create_fvm_with_csv(self, tc, csv_file, dialect='excel', **fmtparams):
