@@ -283,11 +283,13 @@ class tf_prepper():
         return(self.ds)
         
         
-    def build_input_model(self, cat=True):
+    def build_input_model(self, cat=True, ignore_fns=[]):
         inputs = {}
         outputs = {}
         
-        for fn in self.input_features:
+        fns = [fn for fn in self.input_features if fn not in ignore_fns]
+        
+        for fn in fns:
             fn_config = self.config[fn]
         
             if fn_config["type"] == "hdc":
@@ -333,8 +335,9 @@ class tf_prepper():
         return(output_layers)
        
        
-    def build_model(self, middle_layer_list=None, cat=True, activation="sigmoid"):
-        input_model = self.build_input_model(cat=cat)
+    def build_model(self, middle_layer_list=None, cat=True,
+                    ignore_fns=[], activation="sigmoid"):
+        input_model = self.build_input_model(cat=cat, ignore_fns=ignore_fns)
         output_layers = self.build_output_layers(activation=activation)
         
         prev_layer = input_model.output
