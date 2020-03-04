@@ -136,7 +136,7 @@ class tf_prepper():
                 else:
                     self.base_data[idx][fn][st] = [val]
             except:
-                msg = "unable to put update base_data with (idx: %s, fn: %s, st: %s, val: val)... hint duration[idx] is: %s" %(idx, fn, st, val, self.durations[idx])
+                msg = "unable to put update base_data with (idx: %s, fn: %s, st: %s, val: %s)... hint duration[idx] is: %s" %(idx, fn, st, val, self.durations[idx])
                 warnings.warn(msg)
             
     
