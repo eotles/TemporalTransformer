@@ -500,6 +500,7 @@ class entity():
             plt.title("".format(lb))
             plt.title("{}".format(self.idx), loc="left")
             plt.title("{}".format(lb), loc="right")
+            plt.ylim([-0.05, 1.05])
             plt.ylabel("Estimated Probability")
             plt.xlabel("Time")
 

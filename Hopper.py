@@ -500,7 +500,7 @@ class flow_view_manager():
         self._create_view(from_tc, "agg", new_col_info, sql_substatement=agg_sel_cols_sql)
         
         
-    def fit_normalization(self, partition=None, from_view="ohe"):
+    def fit_normalization(self, partition=None, from_view="ohe", via_sql_qds=True):
         from_view = "agg" if self.tc.has_times else "ohe"
         
         tc = self.get_tc(from_view)
@@ -514,21 +514,43 @@ class flow_view_manager():
             tc = self.partition_tc[from_view][partition]
             tn = tc.name
         
-        qds = sql_statements.fit_normalization_query_dict_stack
         
-        #TODO: this type of extraction could be a service provided by table_config
-        col_names = []
-        for cn, type in zip(tc.feature_names, tc.feature_types):
-            if type == "real":
-                col_names.append(cn)
-        
-        nrm_config = self.cur_man.execute_tiered_query(tn, col_names, qds, {})
+        if via_sql_qds:
+            qds = sql_statements.fit_normalization_query_dict_stack
+            
+            #TODO: this type of extraction could be a service provided by table_config
+            col_names = []
+            for cn, type in zip(tc.feature_names, tc.feature_types):
+                if type == "real":
+                    col_names.append(cn)
+            
+            nrm_config = self.cur_man.execute_tiered_query(tn, col_names, qds, {})
+        else:
+            import numpy as np
+            
+            nrm_config = {}
+            col_names = []
+            for cn, type in zip(tc.feature_names, tc.feature_types):
+                if type=="real":
+                    col_names.append(cn)
+            
+            select_cols_sql = sql_statements.select_cols_sql
+            cols = ", ".join(col_names)
+            select_cols_sql = select_cols_sql.format(cols=cols, tn=tn)
+            tn_vals = self.cur_man.execute_fetchall(select_cols_sql)
+            tn_vals = np.array(tn_vals)
+            count = tn_vals.shape[0]
+            for i, cn in enumerate(col_names):
+                cn_vals = tn_vals[i]
+                nrm_config[cn] = {"avg": np.mean(cn_vals),
+                                  "count": count,
+                                  "var": np.var(cn_vals)}
         
         #TODO: probably more efficient to do by some type of dictionary update
-        for cn, type in zip(tc.feature_names, tc.feature_types):
+        for cn, c_type in zip(tc.feature_names, tc.feature_types):
             if cn not in nrm_config:
                 nrm_config[cn] = {}
-            nrm_config[cn]["type"] = type
+            nrm_config[cn]["type"] = c_type
         
         self.nrm_config = nrm_config
 
@@ -756,9 +778,9 @@ class dbms():
             fvm.create_partition_views(partitions, from_view=from_view)
 
     #TODO: consider renaming to fit_normalize
-    def fit_normalization(self, from_view=None, partition=None, percentile_cutoff=0.01):
+    def fit_normalization(self, from_view=None, partition=None, percentile_cutoff=0.01, via_sql_qds=True):
         for fvm in self.fvms:
-            fvm.fit_normalization(partition=partition)
+            fvm.fit_normalization(partition=partition, via_sql_qds=via_sql_qds)
     
     
     def normalize(self):
@@ -773,7 +795,7 @@ class dbms():
             fvm.create_partition_views(partitions, from_view=from_view)
         
     
-    def dew_it(self, after_first=None, before_last=None):
+    def dew_it(self, after_first=None, before_last=None, fit_normalization_via_sql_qds=True):
         if not self.windows:
             self.set_windows(data=[],
                              after_first=after_first,
@@ -788,7 +810,7 @@ class dbms():
         self.set_relcal()
         self.fil_agg()
         self.create_partition_views_prior_to_normalization()
-        self.fit_normalization()
+        self.fit_normalization(via_sql_qds=fit_normalization_via_sql_qds)
         self.normalize()
         self.create_final_partition_views()
             
