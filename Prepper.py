@@ -464,7 +464,7 @@ class entity():
     def predict(self, model):
         self.model = model
         
-        s_Y_hat = model.predict_on_batch(self.s_X)
+        s_Y_hat = model.predict(self.s_X)
         
         predictions = {}
         if len(self.tfp.label_fns)==1:
