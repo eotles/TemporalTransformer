@@ -157,8 +157,9 @@ class tf_prepper():
         
         windows_sql = select_cols_sql.format(cols="*", tn=Hopper.wn_tn)
         windows = self.cur_man.execute_fetchall(windows_sql)
-        self.durations = {idx: et+1 for idx, _, et in windows}
+        #self.durations = {idx: et+1 for idx, _, et in windows}
         #NOTE: we are adding 1 to duration - do we need this?
+        self.durations = {idx: et for idx, _, et in windows} #this might fix it
         self.idxs = list(self.durations.keys())
         self.base_data = {idx: {} for idx in self.idxs}
         
