@@ -517,7 +517,7 @@ def roc_curves(ys, ps, ns, coalate=True, lb=""):
     plt.figure()
     plt.plot([0, 1], [0, 1], "k:")
     
-    label_template = "{} (AUC: {:.2f})"
+    label_template = "{} (AUC: {:.3f})"
     
     all_y = []
     all_p = []
@@ -541,10 +541,39 @@ def roc_curves(ys, ps, ns, coalate=True, lb=""):
     plt.title('%s\nReceiver Operating Characteristics' %(lb))
     plt.legend(loc="lower right")
     plt.show()
-        
 
-def _cc_helper(y, p, n, ax1, ax2, lb="", color=None):
-    label_template = "{} (BS: {:.2f})"
+
+def pr_curves(ys, ps, ns, coalate=True, lb=""):
+    plt.figure()
+
+    label_template = "{} (AUC: {:.3f})"
+
+    all_y = []
+    all_p = []
+    for y, p, n in zip(ys, ps, ns):
+        all_y += y
+        all_p += p
+        precision, recall, thresholds = metrics.precision_recall_curve(y, p)
+        avg_precision = metrics.average_precision_score(y, p)
+        plt.plot(recall, precision, lw=2, label=label_template.format(n, avg_precision))
+
+    if coalate:
+        precision, recall, thresholds = metrics.precision_recall_curve(all_y, all_p)
+        avg_precision = metrics.average_precision_score(all_y, all_p)
+        plt.plot(recall, precision, 'k', lw=2, label=label_template.format("All", avg_precision))
+
+        
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('Recall (Sensitivity)')
+    plt.ylabel('Precision (PPV)')
+    plt.title('%s\nReceiver Operating Characteristics' %(lb))
+    plt.legend(loc="lower right")
+    plt.show()
+
+
+def _cc_helper(y, p, n, ax1, ax2, lb="", color=None, hist_density=True):
+    label_template = "{} (BS: {:.3f})"
     
     pr = [round(_) for _ in p]
     
@@ -563,20 +592,20 @@ def _cc_helper(y, p, n, ax1, ax2, lb="", color=None):
                  color=color,
                  label=label_template.format(n, clf_score))
 
-        ax2.hist(p, range=(0, 1), bins=10, label=n,
+        ax2.hist(p, range=(0, 1), bins=10, label=n, density=hist_density,
                  color=color,
                  histtype="step", lw=2)
     else:
         ax1.plot(mean_predicted_value, fraction_of_positives, "s-",
                  label=label_template.format(n, clf_score))
 
-        ax2.hist(p, range=(0, 1), bins=10, label=n,
+        ax2.hist(p, range=(0, 1), bins=10, label=n, density=hist_density,
                  histtype="step", lw=2)
 
 
 #TODO: graph axes should be static
 #https://scikit-learn.org/stable/auto_examples/calibration/plot_calibration_curve.html#sphx-glr-auto-examples-calibration-plot-calibration-curve-py
-def calibration_curves(ys, ps, ns, coalate=True, lb=""):
+def calibration_curves(ys, ps, ns, coalate=True, lb="", hist_density=True):
     
     fig = plt.figure(figsize=(10, 10))
     ax1 = plt.subplot2grid((3, 1), (0, 0), rowspan=2)
@@ -589,10 +618,11 @@ def calibration_curves(ys, ps, ns, coalate=True, lb=""):
     for y, p, n in zip(ys, ps, ns):
         all_y += y
         all_p += p
-        _cc_helper(y, p, n, ax1, ax2, lb=lb)
+        _cc_helper(y, p, n, ax1, ax2, lb=lb, hist_density=hist_density)
         
     if coalate:
-        _cc_helper(all_y, all_p, "All", ax1, ax2, lb=lb, color="k")
+        _cc_helper(all_y, all_p, "All", ax1, ax2, lb=lb, color="k",
+                   hist_density=hist_density)
 
     ax1.set_ylabel("Fraction of positives")
     ax1.set_ylim([-0.05, 1.05])
@@ -639,7 +669,7 @@ class population():
             sys.stdout.write('\r')
             sys.stdout.write("Step: %s" %(i+1))
         sys.stdout.write('\r')
-        sys.stdout.write("Done: %s" %(i+1))
+        sys.stdout.write("Done: %s\n" %(i+1))
             
         
         #generate_comparison_sets
@@ -657,6 +687,11 @@ class population():
                     _p = prediction[lb][:, o_i]
                     _p = _p.tolist()[:len(_y)]
                     pred[lb][o] += _p
+        
+        for lb in self.tfp.label_fns:
+            for o_i, o in enumerate(self.tfp.offsets):
+                print("%s %s - mean label: %0.3f, pred: %0.3f"
+                      %(lb, o, np.mean(real[lb][o]), np.mean(pred[lb][o]) ))
 
         self.predictions = predictions
         self.real = real
@@ -679,6 +714,10 @@ class population():
 
     def roc_curves(self, coalate=True):
         self._run_graph_functions(roc_curves, coalate=coalate)
+        
+        
+    def pr_curves(self, coalate=True):
+        self._run_graph_functions(pr_curves, coalate)
         
 
     def calibration_curves(self, coalate=True):
