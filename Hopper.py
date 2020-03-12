@@ -541,7 +541,7 @@ class flow_view_manager():
             tn_vals = np.array(tn_vals)
             count = tn_vals.shape[0]
             for i, cn in enumerate(col_names):
-                cn_vals = tn_vals[i]
+                cn_vals = tn_vals[:, i]
                 nrm_config[cn] = {"avg": np.mean(cn_vals),
                                   "count": count,
                                   "var": np.var(cn_vals)}
