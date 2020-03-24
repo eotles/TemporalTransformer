@@ -513,7 +513,7 @@ class entity():
             
     
 #TODO: graph axes should be static
-def roc_curves(ys, ps, ns, coalate=True, lb=""):
+def roc_curves(ys, ps, ns, ws, coalate=True, lb=""):
     plt.figure()
     plt.plot([0, 1], [0, 1], "k:")
     
@@ -521,15 +521,17 @@ def roc_curves(ys, ps, ns, coalate=True, lb=""):
     
     all_y = []
     all_p = []
-    for y, p, n in zip(ys, ps, ns):
+    all_w = []
+    for y, p, n, w in zip(ys, ps, ns, ws):
         all_y += y
         all_p += p
-        fpr, tpr, thresholds = metrics.roc_curve(y, p)
+        all_w += w
+        fpr, tpr, thresholds = metrics.roc_curve(y, p, sample_weight=w)
         roc_auc = metrics.auc(fpr, tpr)
         plt.plot(fpr, tpr, lw=2, label=label_template.format(n, roc_auc))
     
     if coalate:
-        fpr, tpr, thresholds = metrics.roc_curve(all_y, all_p)
+        fpr, tpr, thresholds = metrics.roc_curve(all_y, all_p, sample_weight=all_w)
         roc_auc = metrics.auc(fpr, tpr)
         plt.plot(fpr, tpr, 'k', lw=2, label=label_template.format("All", roc_auc))
     
@@ -543,22 +545,24 @@ def roc_curves(ys, ps, ns, coalate=True, lb=""):
     plt.show()
 
 
-def pr_curves(ys, ps, ns, coalate=True, lb=""):
+def pr_curves(ys, ps, ns, ws, coalate=True, lb=""):
     plt.figure()
 
     label_template = "{} (AUC: {:.3f})"
 
     all_y = []
     all_p = []
-    for y, p, n in zip(ys, ps, ns):
+    all_w = []
+    for y, p, n, w in zip(ys, ps, ns, ws):
         all_y += y
         all_p += p
-        precision, recall, thresholds = metrics.precision_recall_curve(y, p)
-        avg_precision = metrics.average_precision_score(y, p)
+        all_w += w
+        precision, recall, thresholds = metrics.precision_recall_curve(y, p, sample_weight=w)
+        avg_precision = metrics.average_precision_score(y, p, sample_weight=w)
         plt.plot(recall, precision, lw=2, label=label_template.format(n, avg_precision))
 
     if coalate:
-        precision, recall, thresholds = metrics.precision_recall_curve(all_y, all_p)
+        precision, recall, thresholds = metrics.precision_recall_curve(all_y, all_p, sample_weight=all_w)
         avg_precision = metrics.average_precision_score(all_y, all_p)
         plt.plot(recall, precision, 'k', lw=2, label=label_template.format("All", avg_precision))
 
@@ -572,17 +576,17 @@ def pr_curves(ys, ps, ns, coalate=True, lb=""):
     plt.show()
 
 
-def _cc_helper(y, p, n, ax1, ax2, lb="", color=None, hist_density=True):
+def _cc_helper(y, p, n, w, ax1, ax2, lb="", color=None, hist_density=True):
     label_template = "{} (BS: {:.3f})"
     
     pr = [round(_) for _ in p]
     
-    clf_score = metrics.brier_score_loss(y, p, pos_label=max(y))
+    clf_score = metrics.brier_score_loss(y, p, sample_weight=w, pos_label=max(y))
     print("%s (%s)" %(lb, n))
     print("\tBrier: %1.3f" % (clf_score))
-    print("\tPrecision: %1.3f" % metrics.precision_score(y, pr))
-    print("\tRecall: %1.3f" % metrics.recall_score(y, pr))
-    print("\tF1: %1.3f\n" % metrics.f1_score(y, pr))
+    print("\tPrecision: %1.3f" % metrics.precision_score(y, pr, sample_weight=w))
+    print("\tRecall: %1.3f" % metrics.recall_score(y, pr, sample_weight=w))
+    print("\tF1: %1.3f\n" % metrics.f1_score(y, pr, sample_weight=w))
     
     fraction_of_positives, mean_predicted_value = \
         calibration.calibration_curve(y, p, n_bins=10)
@@ -605,7 +609,7 @@ def _cc_helper(y, p, n, ax1, ax2, lb="", color=None, hist_density=True):
 
 #TODO: graph axes should be static
 #https://scikit-learn.org/stable/auto_examples/calibration/plot_calibration_curve.html#sphx-glr-auto-examples-calibration-plot-calibration-curve-py
-def calibration_curves(ys, ps, ns, coalate=True, lb="", hist_density=True):
+def calibration_curves(ys, ps, ns, ws, coalate=True, lb="", hist_density=True):
     
     fig = plt.figure(figsize=(10, 10))
     ax1 = plt.subplot2grid((3, 1), (0, 0), rowspan=2)
@@ -614,14 +618,16 @@ def calibration_curves(ys, ps, ns, coalate=True, lb="", hist_density=True):
     
     all_y = []
     all_p = []
+    all_w = []
     
-    for y, p, n in zip(ys, ps, ns):
+    for y, p, n, w in zip(ys, ps, ns, ws):
         all_y += y
         all_p += p
-        _cc_helper(y, p, n, ax1, ax2, lb=lb, hist_density=hist_density)
+        all_w += w
+        _cc_helper(y, p, n, w, ax1, ax2, lb=lb, hist_density=hist_density)
         
     if coalate:
-        _cc_helper(all_y, all_p, "All", ax1, ax2, lb=lb, color="k",
+        _cc_helper(all_y, all_p, "All", all_w, ax1, ax2, lb=lb, color="k",
                    hist_density=hist_density)
 
     ax1.set_ylabel("Fraction of positives")
@@ -639,18 +645,24 @@ def calibration_curves(ys, ps, ns, coalate=True, lb="", hist_density=True):
 
 class population():
 
-    def __init__(self, ds, tfp, model=None):
+    def __init__(self, ds, tfp, model=None, weight_fx=None):
         self.ds = ds
         self.tfp = tfp
         self.model = model
         if model is not None:
-            self.predict(model)
+            self.predict(model, weight_fx=weight_fx)
+        if weight_fx is not None:
+            self.calc_weights(weight_fx)
+        else:
+            self.calc_weights(lambda x: 1)
         
-    def predict(self, model):
+    def predict(self, model, weight_fx=None):
         self.model = model
         
         sys.stdout.write("Init")
         predictions = {}
+        
+        
         for i, (_X, _Y) in enumerate(self.ds):
             _Y_hat = model.predict_on_batch(_X)
             idxs = _X["i_id"].numpy()[:, 0, 0]
@@ -675,6 +687,8 @@ class population():
         #generate_comparison_sets
         real = {lb: {o: [] for o in self.tfp.offsets} for lb in self.tfp.label_fns}
         pred = {lb: {o: [] for o in self.tfp.offsets} for lb in self.tfp.label_fns}
+        #weights = {lb: {o: [] for o in self.tfp.offsets} for lb in self.tfp.label_fns}
+        durs = {lb: {o: [] for o in self.tfp.offsets} for lb in self.tfp.label_fns}
 
         for idx, prediction in predictions.items():
             label = self.tfp.labels[idx]
@@ -687,7 +701,14 @@ class population():
                     _p = prediction[lb][:, o_i]
                     _p = _p.tolist()[:len(_y)]
                     pred[lb][o] += _p
-        
+                    
+                    #if weight_fx:
+                    #    weights[lb][o] += [weight_fx(len(_y))]*len(_y)
+                    #else:
+                    #    weights[lb][o] += [1]*len(_y)
+                    
+                    durs[lb][o].append(len(_y))
+                        
         for lb in self.tfp.label_fns:
             for o_i, o in enumerate(self.tfp.offsets):
                 print("%s %s - mean label: %0.3f, pred: %0.3f"
@@ -696,20 +717,39 @@ class population():
         self.predictions = predictions
         self.real = real
         self.pred = pred
+        #self.weights = weights
+        self.durs = durs
+        
+    #TODO:
+    #instead of saving weights in predict step - save the duration
+    #create a function calculates weights based on duration
+    def calc_weights(self, weight_fx):
+        weights = {lb: {o: [] for o in self.tfp.offsets} for lb in self.tfp.label_fns}
+        
+        for lb in self.tfp.label_fns:
+            for o_i, o in enumerate(self.tfp.offsets):
+                for d in self.durs[lb][o]:
+                    weights[lb][o] += [weight_fx(d)]*d
+        
+        self.weights = weights
         
         
-    def _run_graph_functions(self, graph_fx, coalate=True):
+        
+        
+    def _run_graph_functions(self, graph_fx, coalate=True, weights=None):
 
         for lb in self.tfp.label_fns:
             ys = []
             ps = []
+            ws = []
             ns = []
             for o in self.tfp.offsets:
                 ys.append(self.real[lb][o])
                 ps.append(self.pred[lb][o])
+                ws.append(self.weights[lb][o])
                 ns.append(o)
 
-            graph_fx(ys, ps, ns, lb=lb, coalate=coalate)
+            graph_fx(ys, ps, ns, ws=ws, lb=lb, coalate=coalate)
             
 
     def roc_curves(self, coalate=True):
