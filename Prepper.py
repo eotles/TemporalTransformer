@@ -283,8 +283,10 @@ class tf_prepper():
         #TODO: should do some garbage collection
         return(self.ds)
         
-        
-    def build_input_model(self, cat=True, ignore_fns=[]):
+    #TODO: dropout_fns - update this with the code from the server (in peers_predictive.ipynb)
+    #TODO: update ablatte
+    def build_input_model(self, cat=True,
+                          ignore_fns=[], dropout_fns={}):
         inputs = {}
         outputs = {}
         
@@ -337,8 +339,9 @@ class tf_prepper():
        
        
     def build_model(self, middle_layer_list=None, cat=True,
-                    ignore_fns=[], activation="sigmoid"):
-        input_model = self.build_input_model(cat=cat, ignore_fns=ignore_fns)
+                    ignore_fns=[], dropout_fns={}, activation="sigmoid"):
+        input_model = self.build_input_model(cat=cat, ignore_fns=ignore_fns,
+                                             dropout_fns=dropout_fns)
         output_layers = self.build_output_layers(activation=activation)
         
         prev_layer = input_model.output
