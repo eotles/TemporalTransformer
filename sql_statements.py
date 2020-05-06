@@ -200,11 +200,12 @@ GROUP BY {pk_cn};
 #if after_first provided and before_last=None, range: min -> min+after_first
 #if before_last provided and after_first=None, range: max-before_last -> max
 #if both provided, range: min+after_first -> max-before_last
-def gen_range_table_sql(after_first=None, before_last=None):
+def gen_range_table_sql(after_first=None, before_last=None,
+                        default_first=None, default_last=None):
     print("gen_range_table_sql called: af=%s, bf=%s" %(after_first, before_last))
     
-    l = "MIN({st_cn})"
-    r = "MAX({et_cn})"
+    l = default_first if default_first else "MIN({st_cn})"
+    r = default_last if default_last else "MAX({et_cn})"
     if after_first is not None and before_last is None:
         r = "%s+%s" %(l, after_first)
     elif after_first is None and before_last is not None:

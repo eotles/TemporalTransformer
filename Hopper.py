@@ -679,12 +679,16 @@ class dbms():
 
 
     def set_windows(self, data, fill_remainder=True,
-                    after_first=None, before_last=None):
+                    after_first=None, before_last=None,
+                    default_first=None, default_last=None):
 
         self.windows = True
         self.wn_dtm.insert_data_into(data, many=True)
         if fill_remainder:
-            range_table_sql = sql_statements.gen_range_table_sql(after_first=after_first, before_last=before_last)
+            range_table_sql = sql_statements.gen_range_table_sql(after_first=after_first,
+                                                                 before_last=before_last,
+                                                                 default_first=default_first,
+                                                                 default_last=default_last)
             ss = self._union_samples_sql().replace("\n", "\n\t")
             range_table_sql = range_table_sql.format(pk_cn=pk_cn, st_cn=st_cn, et_cn=et_cn,
                                                      sql_substatement=ss)
@@ -795,11 +799,15 @@ class dbms():
             fvm.create_partition_views(partitions, from_view=from_view)
         
     
-    def dew_it(self, after_first=None, before_last=None, fit_normalization_via_sql_qds=True):
+    def dew_it(self, after_first=None, before_last=None,
+               default_first=None, default_last=None,
+               fit_normalization_via_sql_qds=True):
         if not self.windows:
             self.set_windows(data=[],
                              after_first=after_first,
-                             before_last=before_last)
+                             before_last=before_last,
+                             default_first=default_first,
+                             default_last=default_last)
         
         if not self.partitions:
             self.set_partitions(data=[])
