@@ -204,8 +204,8 @@ def gen_range_table_sql(after_first=None, before_last=None,
                         default_first=None, default_last=None):
     print("gen_range_table_sql called: af=%s, bf=%s" %(after_first, before_last))
     
-    l = default_first if default_first else "MIN({st_cn})"
-    r = default_last if default_last else "MAX({et_cn})"
+    l = "MIN({st_cn})" if default_first is None else default_first
+    r = "MAX({et_cn})" if default_last is None else default_last
     if after_first is not None and before_last is None:
         r = "%s+%s" %(l, after_first)
     elif after_first is None and before_last is not None:
