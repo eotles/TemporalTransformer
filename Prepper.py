@@ -579,7 +579,8 @@ def pr_curves(ys, ps, ns, ws, coalate=True, lb=""):
     plt.show()
 
 
-def _cc_helper(y, p, n, w, ax1, ax2, lb="", color=None, hist_density=True):
+def _cc_helper(y, p, n, w, ax1, ax2, lb="", color=None, n_bins=10,
+               hist_density=True, quantile=False):
     label_template = "{} (BS: {:.3f})"
     
     pr = [round(_) for _ in p]
@@ -591,28 +592,33 @@ def _cc_helper(y, p, n, w, ax1, ax2, lb="", color=None, hist_density=True):
     print("\tRecall: %1.3f" % metrics.recall_score(y, pr, sample_weight=w))
     print("\tF1: %1.3f\n" % metrics.f1_score(y, pr, sample_weight=w))
     
+    strategy = "quantile" if quantile else "uniform"
+    
     fraction_of_positives, mean_predicted_value = \
-        calibration.calibration_curve(y, p, n_bins=10)
+        calibration.calibration_curve(y, p, n_bins=n_bins, strategy=strategy)
 
     if color:
         ax1.plot(mean_predicted_value, fraction_of_positives, "s-",
                  color=color,
                  label=label_template.format(n, clf_score))
-
-        ax2.hist(p, range=(0, 1), bins=10, label=n, density=hist_density,
-                 color=color,
-                 histtype="step", lw=2)
+        if not quantile:
+            ax2.hist(p, range=(0, 1), bins=n_bins, label=n, density=hist_density,
+                     color=color,
+                     histtype="step", lw=2)
     else:
         ax1.plot(mean_predicted_value, fraction_of_positives, "s-",
                  label=label_template.format(n, clf_score))
-
-        ax2.hist(p, range=(0, 1), bins=10, label=n, density=hist_density,
-                 histtype="step", lw=2)
+        if not quantile:
+            ax2.hist(p, range=(0, 1), bins=n_bins, label=n, density=hist_density,
+                     histtype="step", lw=2)
 
 
 #TODO: graph axes should be static
 #https://scikit-learn.org/stable/auto_examples/calibration/plot_calibration_curve.html#sphx-glr-auto-examples-calibration-plot-calibration-curve-py
-def calibration_curves(ys, ps, ns, ws, coalate=True, lb="", hist_density=True):
+def calibration_curves(ys, ps, ns, ws, coalate=True, lb="", n_bins=10,
+                       hist_density=True, quantile=False):
+                       
+    print(n_bins, quantile)
     
     fig = plt.figure(figsize=(10, 10))
     ax1 = plt.subplot2grid((3, 1), (0, 0), rowspan=2)
@@ -627,11 +633,12 @@ def calibration_curves(ys, ps, ns, ws, coalate=True, lb="", hist_density=True):
         all_y += y
         all_p += p
         all_w += w
-        _cc_helper(y, p, n, w, ax1, ax2, lb=lb, hist_density=hist_density)
+        _cc_helper(y, p, n, w, ax1, ax2, lb=lb, n_bins=n_bins,
+                   hist_density=hist_density, quantile=quantile)
         
     if coalate:
-        _cc_helper(all_y, all_p, "All", all_w, ax1, ax2, lb=lb, color="k",
-                   hist_density=hist_density)
+        _cc_helper(all_y, all_p, "All", all_w, ax1, ax2, lb=lb, color="k", n_bins=n_bins,
+                   hist_density=hist_density, quantile=quantile)
 
     ax1.set_ylabel("Fraction of positives")
     ax1.set_ylim([-0.05, 1.05])
@@ -739,7 +746,7 @@ class population():
         
         
         
-    def _run_graph_functions(self, graph_fx, coalate=True, weights=None):
+    def _run_graph_functions(self, graph_fx, coalate=True, weights=None, **kwargs):
 
         for lb in self.tfp.label_fns:
             ys = []
@@ -752,7 +759,7 @@ class population():
                 ws.append(self.weights[lb][o])
                 ns.append(o)
 
-            graph_fx(ys, ps, ns, ws=ws, lb=lb, coalate=coalate)
+            graph_fx(ys, ps, ns, ws=ws, lb=lb, coalate=coalate, **kwargs)
             
 
     def roc_curves(self, coalate=True):
@@ -763,6 +770,6 @@ class population():
         self._run_graph_functions(pr_curves, coalate)
         
 
-    def calibration_curves(self, coalate=True):
-        self._run_graph_functions(calibration_curves, coalate=coalate)
+    def calibration_curves(self, coalate=True, **kwargs):
+        self._run_graph_functions(calibration_curves, coalate=coalate, **kwargs)
 
