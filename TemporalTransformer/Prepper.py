@@ -13,9 +13,9 @@ SOFTWARE.
 '''
 
 
-import Hopper
-import sqlite_utils
-import sql_statements
+from . import Hopper
+from . import sqlite_utils
+from . import sql_statements
 
 import tensorflow as tf
 import numpy as np

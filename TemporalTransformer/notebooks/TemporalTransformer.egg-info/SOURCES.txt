@@ -1,0 +1,4 @@
+TemporalTransformer.egg-info/PKG-INFO
+TemporalTransformer.egg-info/SOURCES.txt
+TemporalTransformer.egg-info/dependency_links.txt
+TemporalTransformer.egg-info/top_level.txt

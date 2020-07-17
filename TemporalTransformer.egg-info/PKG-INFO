@@ -1,0 +1,14 @@
+Metadata-Version: 2.1
+Name: TemporalTransformer
+Version: 0.0.1
+Summary: Data transformation package for dynamic machine learning
+Home-page: https://github.com/pypa/sampleproject
+Author: Erkin Ötleş
+Author-email: eotles@gmail.com
+License: UNKNOWN
+Description: fuck
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown

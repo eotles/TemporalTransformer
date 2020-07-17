@@ -20,8 +20,8 @@ import math
 
 #from sqlite_utils import cursor_manager
 
-import sqlite_utils
-import sql_statements
+from . import sqlite_utils
+from . import sql_statements
 
 class OperationalError(Exception):
     pass
@@ -103,6 +103,20 @@ class table_config():
                      "pk_cn": self.pk_cn, "st_cn": self.st_cn, "et_cn": self.et_cn,
                      "mn_tn": self.mn_tn, "wn_tn": self.wn_tn, "pr_tn": self.pr_tn,
                      "rc_tn": self.rc_tn}
+    
+    #TODO: consider changing to JSON
+    def _get_save_dict(self):
+        var_dict = vars(self)
+        keep_var = ["name", "feature_names", "feature_types",
+                    "has_times", "primary_key", "foreign_key", "is_view"]
+        save_dict = {k: var_dict[k] for k in keep_var}
+        return(save_dict)
+    
+    #TODO: consider changing to JSON
+    @classmethod
+    def load_save_dict(cls, save_dict):
+        return(cls(**save_dict))
+    
 
     @property
     def column_names(self):
@@ -217,6 +231,8 @@ class flow_view_manager():
         self.view_tc = {v: None for v in self.views}
         self.view_tc["org"] = self.data_table_man.table_config
         self.partition_tc = {v: None for v in self.views}
+        
+        self.filter_config = None #added for saving functionality - may break stuff
     
     @property
     def view_names(self):
@@ -814,6 +830,7 @@ class dbms():
             fvm.create_partition_views(partitions, from_view=from_view)
         
     
+    #TODO: duplicate call issue: start checking if windows set already
     def dew_it(self, after_first=None, before_last=None,
                default_first=None, default_last=None,
                fit_normalization_via_sql_qds=True):
