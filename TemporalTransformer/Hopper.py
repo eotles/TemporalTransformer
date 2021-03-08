@@ -18,6 +18,14 @@ import csv
 from scipy import stats
 import math
 
+#imports for unix time conversion, change from *
+import time
+from dateutil.relativedelta import *
+from dateutil.easter import *
+from dateutil.rrule import *
+from dateutil.parser import *
+from datetime import *
+
 #from sqlite_utils import cursor_manager
 
 from . import sqlite_utils
@@ -31,6 +39,25 @@ class OperationalError(Exception):
 #TODO: generate method ot transform streaming data for use with learned model
 
 #TODO: check if normalizing with sqrt(var)
+
+def string_to_time(time):
+    if isinstance(time, int) or isinstance(time, float):
+        return time
+    
+    numbers = [int(word) for word in time.split() if word.isdigit()]
+    number = numbers[0]
+    if "second" in time:
+        return number
+    if "min" in time:
+        return number*60
+    if "h" in time:
+        return number*60*60
+    if "day" in time:
+        return number*86400
+    if "w" in time:
+        return number*86400*7
+    if "mon" in time:
+        return number*86400*30
 
 #TODO: move whole project to use these global variables
 pk_cn = "i_id" #primary key column name
@@ -48,7 +75,7 @@ pr_cn = 'partition'
 column_types = ["ID", "real", "ldc", "hdc"]
 sql_column_type_lookup = {
     "ID": "TEXT NOT NULL",
-    "timestamp": "INTEGER NOT NULL",
+    "timestamp": "INTEGER NOT NULL",#time must be converted first and also to a double for times w/ milliseconds
     "real": "REAL NOT NULL",
     "ldc": "TEXT NOT NULL",
     "hdc": "TEXT NOT NULL",
@@ -60,9 +87,6 @@ def get_SQLite_column_types(column_types):
     for column_type in column_types:
         SQLite_column_types.append(sql_column_type_lookup[column_type])
     return(SQLite_column_types)
-
-
-
 
 '''
 this class should only contain meta-data about tables/views
@@ -130,7 +154,7 @@ class table_config():
     def column_types(self):
         column_types = ["ID"]
         if self.has_times:
-            column_types += ["timestamp", "timestamp"]
+            column_types += ["timestamp", "timestamp"]#unsure how/where it's processed, must be converted to unix first
         column_types += self.feature_types
         return(column_types)
 
@@ -140,7 +164,7 @@ class table_config():
     
         
     @property
-    def select_times_sql(self):
+    def select_times_sql(self):#is this where timestamps are processed? convert to unix time here then select times before return
         if self.has_times==False:
             raise OperationalError("cannot select times from table with has_times=False")
         
@@ -165,7 +189,6 @@ class data_table_manager():
     def _get_info(self):
         return(self.table_config, self.table_config.info)
         
-        
     def _create_table(self, drop_if_exists=True):
         tc, info = self._get_info()
         
@@ -173,7 +196,7 @@ class data_table_manager():
             drop_sql = sql_statements.drop_table_sql
             self.cur_man.execute_sql(drop_sql.format(**info))
         
-        col_spec_list = ['%s %s' %(n, t)
+        col_spec_list = ['%s %s' %(n, t)#unsure exactly what's going on, seems like there may be changes here
                          for n, t in zip(tc.column_names, tc.column_sql_types)]
         info["col_spec"] = ",\n\t".join(col_spec_list)
         create_sql = sql_statements.create_sql(primary_key=tc.primary_key,
@@ -308,7 +331,7 @@ class flow_view_manager():
         self.view_tc[new_view] = new_tc
        
     
-    def create_windows_view(self, from_view="org"):
+    def create_windows_view(self, from_view="org"):#unsure how window size is calculated
         def _win(cn, ctype):
             if cn in [pk_cn, st_cn, et_cn]:
                 return([], [])
@@ -397,6 +420,7 @@ class flow_view_manager():
                 if z_score < float('inf'):
                     sql = sql_statements.col_avg_var_sql
                     avg, var = self.cur_man.execute_fetchone(sql.format(**info))
+                    print("cn: ",cn, " var: ",var, " tn: ",tn)
                     std = var**(0.5)
                     hw = z_score*std
                     lb, ub = avg-hw, avg+hw
@@ -624,7 +648,7 @@ class dbms():
 
     pr_cn = 'partition'
 
-    def __init__(self, database=":memory:", verbose=True):
+    def __init__(self, database=":memory:", verbose=True):#relcal and winodws changed here?
         self.database = database
         self.verbose = verbose
 
@@ -665,17 +689,65 @@ class dbms():
     def _create_fvm(self, tc):
         fvm = flow_view_manager(tc, self.cur_man)
         self.fvms.append(fvm)
-        return(fvm)
-        
-    
-    def _data_to_fvm(self, fvm, iterable_data):
+        return(fvm) 
+
+    def to_unix_time(self, date):
+        curr_date = parse(date)
+        curr_date_unix = (curr_date - datetime(1970,1,1)).total_seconds()
+        return curr_date_unix
+
+    def _data_to_fvm(self, fvm, iterable_data, hasUnixTimes, hasTimestamps, timestep):
         dtm = fvm.data_table_man
         data = []
         ids = []
+        step = 0
+        if timestep is not None:
+            step = string_to_time(timestep)
         
         for _row in iterable_data:
             data.append(_row)
             ids.append(_row[0])
+
+        if hasTimestamps and step==0:
+            temp_data = []
+
+            for i in range(len(data)):
+                temp_data.append(data[i][0:2])
+                temp_data[i].insert(2,0)
+                temp_data[i].insert(3,i)
+                if not hasUnixTimes:
+                    date = temp_data[i][1]
+                    temp_data[i][1] = self.to_unix_time(date)
+            if temp_data[0][0][0] == '\ufeff':
+                temp_data[0][0] = temp_data[0][0][1:]
+                data[0][0] = data[0][0][1:]
+            temp_data.sort(key = lambda l: (l[0], l[1]))
+
+            prev_step = 2
+            for i in range(len(temp_data)-1):
+                if temp_data[i][0] == temp_data[i+1][0]:
+                    temp_data[i][2] = temp_data[i+1][1]
+                    prev_step = temp_data[i][2] - temp_data[i][1]
+                else:
+                    temp_data[i][2] = temp_data[i][1] + prev_step
+            temp_data[-1][2] = temp_data[-1][1] + prev_step
+            for i in range(len(temp_data)):
+                row_num = temp_data[i][3]
+                data[row_num][1] = temp_data[i][1]
+                data[row_num].insert(2, temp_data[i][2])
+            
+
+        if hasTimestamps and step>0:
+            for i in range(len(data)):
+                if not hasUnixTimes:
+                    data[i][1] = self.to_unix_time(data[i][1])
+                end_date_unix = data[i][1] + step
+                data[i].insert(2, end_date_unix)
+            
+        if not hasUnixTimes and not hasTimestamps:
+            for row in data:
+                row[1] = self.to_unix_time(row[1])
+                row[2] = self.to_unix_time(row[2])
             
         if dtm.table_config.foreign_key:
             ids = [[_id] for _id in set(ids)]
@@ -684,24 +756,23 @@ class dbms():
         dtm.insert_data_into(data, many=True)
         dtm.lock()
         
-        if self.verbose:
-            print('%s rows loaded\n' %(len(data)))
+        print('%s rows loaded\n' %(len(data)))
 
 
-    def _csv_to_fvm(self, fvm, csv_file, dialect='excel', **fmtparams):
+    def _csv_to_fvm(self, fvm, csv_file, hasUnixTimes, hasTimestamps, timestep, dialect='excel', **fmtparams):#take into account hasUnixTimes
         with open(csv_file) as csv_file:
             data = csv.reader(csv_file, dialect=dialect, **fmtparams)
-            self._data_to_fvm(fvm, data)
+            self._data_to_fvm(fvm, data, hasUnixTimes, hasTimestamps, timestep)
         
     #TODO: fix iterable data
-    def create_fvm_with_data(self, tc, iterable_data):
+    def create_fvm_with_data(self, tc, iterable_data, hasUnixTimes, hasTimestamps, timestep=None):
         fvm = self._create_fvm(tc)
-        self._data_to_fvm(fvm, iterable_data)
+        self._data_to_fvm(fvm, iterable_data, hasUnixTimes, hasTimestamps, timestep)
     
 
-    def create_fvm_with_csv(self, tc, csv_file, dialect='excel', **fmtparams):
+    def create_fvm_with_csv(self, tc, csv_file, hasUnixTimes=True, hasTimestamps=False, timestep=None, dialect='excel', **fmtparams):#isUnixTimes=true/false
         fvm = self._create_fvm(tc)
-        self._csv_to_fvm(fvm, csv_file, dialect='excel', **fmtparams)
+        self._csv_to_fvm(fvm, csv_file, hasUnixTimes, hasTimestamps, timestep, dialect='excel', **fmtparams)#isUnixTimes=true/false, actual change to csv happens here
         
 
     def _union_samples_sql(self):
@@ -711,7 +782,7 @@ class dbms():
 
     def set_windows(self, data, fill_remainder=True,
                     after_first=None, before_last=None,
-                    default_first=None, default_last=None):
+                    default_first=None, default_last=None):#after/default first/last affected
 
         self.windows = True
         self.wn_dtm.insert_data_into(data, many=True)
@@ -774,16 +845,40 @@ class dbms():
             fvm.create_partition_views(partitions, from_view=from_view)
 
 
-    def set_relcal(self, dt=1):
+    def string_to_time(self, time):
+        if isinstance(time, int) or isinstance(time, float):
+            return time
+        
+        numbers = [int(word) for word in time.split() if word.isdigit()]
+        number = numbers[0]
+        if "second" in time:
+            return number
+        if "min" in time:
+            return number*60
+        if "h" in time:
+            return number*60*60
+        if "day" in time:
+            return number*86400
+        if "w" in time:
+            return number*86400*7
+        if "mon" in time:
+            return number*86400*30
+
+    def set_relcal(self, dt=None):
+        dt_unix = self.string_to_time(dt)
+        print("dt was: ",dt)
+        print("dt_unix is: ", dt_unix)
         min_max_time_sql = sql_statements.min_max_time_sql
         ss = self._union_samples_sql().replace("\n", "\n\t")
         min_max_time_sql = min_max_time_sql.format(st_cn=st_cn, et_cn=et_cn,
                                                  sql_substatement=ss)
         min_rt, max_rt = self.cur_man.execute_fetchone(min_max_time_sql)
         #rel_cal_data = [['None', i, i+1] for i in range(min_rt, max_rt+dt, dt)] #mod to ->
-        rel_cal_data = [['None', i, i+dt] for i in range(min_rt, max_rt+1, dt)]
+        rel_cal_data = [['None', i, i+dt_unix] for i in range(min_rt, max_rt+1, dt_unix)]
         self.rc_dtm.insert_data_into(rel_cal_data, many=True)
         self.relcal_set = True
+
+        # self.tst
 
 
     def fit_filter(self, partition=None, percentile_cutoff=0.01):
@@ -833,7 +928,7 @@ class dbms():
     #TODO: duplicate call issue: start checking if windows set already
     def dew_it(self, after_first=None, before_last=None,
                default_first=None, default_last=None,
-               fit_normalization_via_sql_qds=True):
+               fit_normalization_via_sql_qds=True, dt=None):
         if not self.windows:
             self.set_windows(data=[],
                              after_first=after_first,
@@ -847,7 +942,7 @@ class dbms():
         self.create_windows_views()
         self.create_partition_views_prior_to_filter()
         self.fit_filter(partition="train")
-        self.set_relcal()
+        self.set_relcal(dt)
         self.fil_agg()
         self.create_partition_views_prior_to_normalization()
         self.fit_normalization(via_sql_qds=fit_normalization_via_sql_qds)

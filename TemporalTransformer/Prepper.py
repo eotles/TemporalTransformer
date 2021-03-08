@@ -60,7 +60,39 @@ def make_data_gen(fn_data):
 def expand(x):
     return tf.expand_dims(x, axis = -1)
 
+def create_time_tables(dbms):
+    nrm_names = []
+    for fvm in dbms.fvms:
+        if fvm.tc.has_times:
+            nrm_names.append("nrm_" + fvm.view_tc["org"].name)
+    sql_union = ""
+    for name in nrm_names:
+        if name == nrm_names[-1]:
+            sql_union = sql_union + f"SELECT i_id, i_st FROM {name}"
+            break
+        sql_union = sql_union + f"SELECT i_id, i_st FROM {name} UNION "
+    sql_union = "CREATE TABLE global_table AS " + sql_union
+    dbms.cur_man.execute_fetchall(sql_union)
 
+    raw_ids = dbms.cur_man.execute_fetchall("SELECT i_id FROM i_windows")
+    ids = []
+    for entry in raw_ids:
+        ids.append(entry[0])
+    min_max_times = {}
+    raw_min_max = dbms.cur_man.execute_fetchall("SELECT i_id, MIN(i_st), MAX(i_st) FROM global_table GROUP BY i_id")
+    for row in raw_min_max:
+        min_max_times[row[0]] = []
+        min_max_times[row[0]].append(row[1])
+        min_max_times[row[0]].append(row[2])
+
+    all_times = dbms.cur_man.execute_fetchall("SELECT i_st FROM i_relcal")
+    st_to_index = {}
+    index = 0
+    for row in all_times:
+        st_to_index[row[0]] = index
+        index = index + 1
+
+    return st_to_index, min_max_times
 
 class tf_prepper():
 
@@ -70,6 +102,7 @@ class tf_prepper():
         self.dbms = dbms
         self.cur_man = self.dbms.cur_man
         self._init_features(fvms=fvms, partition=None)
+        self.st_conversion, self.min_max_times = create_time_tables(dbms)
         
     @property
     def input_features(self):
@@ -145,11 +178,12 @@ class tf_prepper():
             else:
                 self.base_data[idx][fn] = [[val]]*self.durations[idx]
         else:
+            st_index = self.st_conversion[st] - self.st_conversion[self.min_max_times[idx][0]]
             try:
                 if type(val) == list:
-                    self.base_data[idx][fn][st] = val
+                    self.base_data[idx][fn][st_index] = val
                 else:
-                    self.base_data[idx][fn][st] = [val]
+                    self.base_data[idx][fn][st_index] = [val]
             except:
                 msg = "unable to put update base_data with (idx: %s, fn: %s, st: %s, val: %s)... hint duration[idx] is: %s" %(idx, fn, st, val, self.durations[idx])
                 warnings.warn(msg)
@@ -172,12 +206,16 @@ class tf_prepper():
         
         windows_sql = select_cols_sql.format(cols="*", tn=Hopper.wn_tn)
         windows = self.cur_man.execute_fetchall(windows_sql)
+        print(windows)
         #self.durations = {idx: et+1 for idx, _, et in windows}
         #NOTE: we are adding 1 to duration - do we need this?
-        self.durations = {idx: et for idx, _, et in windows} #this might fix it
+        # self.durations = {idx: et for idx, _, et in windows} #this might fix it
+        self.durations = {}
+        for key in self.min_max_times:
+            self.durations[key] = self.st_conversion[self.min_max_times[key][1]] - self.st_conversion[self.min_max_times[key][0]] + 1
         self.idxs = list(self.durations.keys())
         self.base_data = {idx: {} for idx in self.idxs}
-        
+        print("duration: ",self.durations,"\n indexes: ", self.idxs, "\n base_data: ", self.base_data)
         #idx & duration
         for idx, duration in self.durations.items():
             self.__update_base_data(idx, None, Hopper.pk_cn, idx, ignore_config=True)
@@ -221,10 +259,13 @@ class tf_prepper():
         self.partition_lookup = partition_lookup
         
         #prepare X datasets
+        print("prepare X datasets")
         x_dss = {partition: {} for partition in partitions}
         x_padded_shapes = {}
         
         for fn in self.features:
+            print("X datasets: ", fn)
+
             fn_data = {partition: [] for partition in partitions}
             for idx, idx_data in self.base_data.items():
                 partition = partition_lookup[idx]
@@ -248,10 +289,12 @@ class tf_prepper():
         
         #prepare Y datasets
         #produce labels from offsetting
+        print("prepare Y datasets")
         label_template = "{fn}/{offset}"
         
         labels = {idx: {} for idx in self.idxs}
         for idx, idx_data in self.base_data.items():
+            print("Y datasets idx: ", idx)
             for fn in self.label_fns:
                 labels[idx][fn] = []
                 for offset in self.offsets:
@@ -261,6 +304,7 @@ class tf_prepper():
                     labels[idx][fn].append(l[o:] + [l[-1]]*o)
         self.labels = labels
         
+        # print("Successfully made it to line 269")
         y_dss = {partition: [] for partition in partitions}
         y_padded_shapes = []
         for label_fn in self.label_fns:
@@ -285,6 +329,7 @@ class tf_prepper():
         y_padded_shapes = tuple(y_padded_shapes)
         
         #merge
+        print("starting merge (295)")
         self.ds = {}
         for partition in partitions:
             par_x_ds = tf.data.Dataset.zip(x_dss[partition])
@@ -513,13 +558,15 @@ class entity():
             print()
         
     
-    def plot(self):
+    def plot(self, ymin=-.05, ymax=1.05, xmin=None, xmax=None):
         for lb in self.tfp.label_fns:
             plt.plot(self.groundTruth[lb], 'k')
             plt.title("".format(lb))
             plt.title("{}".format(self.idx), loc="left")
             plt.title("{}".format(lb), loc="right")
-            plt.ylim([-0.05, 1.05])
+            plt.ylim([ymin, ymax])
+            if xmin is not None and xmax is not None:
+                plt.xlim([xmin, xmax])
             plt.ylabel("Estimated Probability")
             plt.xlabel("Time")
 

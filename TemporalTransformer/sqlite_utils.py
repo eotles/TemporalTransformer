@@ -103,6 +103,7 @@ def interactive_session(cur):
             buffer = ""
             
 def execute_sql(cur, sql_stmt, verbose=True, param=None, many=False):
+    sql_stmt = sql_stmt.replace("--", "+")
     if verbose:
         print(sql_stmt)
     
