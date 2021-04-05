@@ -20,17 +20,25 @@ Important usage notes:
 * Available column types: bin (binary), real, ldc (low dimensional category), hdc (high dimensional category)
 
 ```python
-# Creating a table configuration
-_tc = Hopper.table_config(
-    "AAPL", # Table name
-    ["Open", "High", "Low", "Close", "Volume", "market_up"], # Column names
-    ["real", "real", "real", "real", "real", "bin"], # Respective column types
-    has_times=True,
-    primary_keys=False
-)
+# Creating a table configuration: characteristics table, no times with unique keys
+_tc = Hopper.table_config("characteristics", 
+                  ['Age', 'Weight', 'Gender', 'Height'], 
+                  ['real', 'real', 'bin', 'real'],
+                  has_times=False,
+                  primary_key=True)
+# Add table configuration to our Hopper object
+h.create_fvm_with_csv(_tc, "characteristics.csv", delimiter=',')
 
-# Adding table configuration to Hopper object
-h.create_fvm_with_csv(_tc, "aaple_stock_data.csv", hasUnixTimes=False, hasTimestamps=True, delimeter=',')
+# Creating a table configuration: has times but not unique keys
+_tc = Hopper.table_config("vitals", 
+                  ['RespRate', 'NISysABP', 'Weight', 'NIMAP', 'HR', 'Temp', 'MAP', 'DiasABP', 'NIDiasABP', 'SysABP'], 
+                  ['real', 'real', 'real', 'real', 'real', 'real', 'real', 'real', 'real', 'real'],
+                  has_times=True,
+                  primary_key=False)
+h.create_fvm_with_csv(_tc, "vitals.csv", hasUnixTimes=False, hasTimestamps=True, delimiter=',')
+
+# Create and add all table configurations necessary
+
 ```
 
 # Step 3: Hopper's dew_it function
@@ -44,9 +52,9 @@ dt="140 minutes"
 dt="1 hr"
 dt="2.5 hours"
 ```
-The following line of code calls dew_it on the Hopper object with a given time window of 1 day.
+The following line of code calls dew_it on the Hopper object with a given time window of 3 day.
 ```python
-h.dew_it(fit_normalization_via_sql_qds=False,dt="1 days")
+h.dew_it(fit_normalization_via_sql_qds=False,dt="3 days")
 ```
 
 # Step 4: Creating a Prepper object
@@ -58,11 +66,11 @@ tfp = Prepper.tf_prepper(h)
 
 # Step 5: Prepper's fit function
 
-Next, we use Prepper's fit function to initialize offsets and labels to predict. Offsets refer to how far in advance should predictions be made. We pass in a list of integers to accomplish this. The unit of time for the given offsets come from the value of dt used in dew_it. For example, if we pass in 1, 3, and 5 for our offsets, this will tell the model to make predictions 1, 3, and 5 days from each point in time.
+Next, we use Prepper's fit function to initialize offsets and labels to predict. Offsets refer to how far in advance should predictions be made. We pass in a list of integers to accomplish this. The unit of time for the given offsets come from the value of dt used in dew_it. For example, if we pass in 1, 2, and 3 for our offsets, this will tell the model to make predictions 3, 6, and 9 days from each point in time.
 ```python
-tfp.fit(offsets=[1,3,5], label_fns=["AAPL_avg_Close"], partition="train")
+tfp.fit(offsets=[1,3,5], label_fns=["TABLENAME_avg_death"], partition="train")
 ```
-Here, we are telling Prepper to make predictions for 1, 3, and 5 days in the future for each point in time, and we are predicting the Close column from the table named AAPL. To get a list of all features, we can look at the features attribute of our Prepper object.
+Here, we are telling Prepper to make predictions for 3, 6, and 9 days in the future for each point in time, and we are predicting the death column from the table named TABLENAME. To get a list of all features, we can look at the features attribute of our Prepper object.
 ```python
 tfp.features
 ```
@@ -82,7 +90,7 @@ d0 = tf.keras.layers.Dense(units=32, name="encode")
 r0 = tf.keras.layers.LSTM(units=32,return_sequences=True, name="RNN_0")
 r1 = tf.keras.layers.LSTM(units=16,return_sequences=True, name="RNN_1")
 model = tfp.build_model(middle_layer_list=[d0, r0, r1], activation=None)
-model.compile(loss="mean_absolute_error")
+model.compile(loss="binary_cross_entropy")
 model.summary()
 model.fit(ds["train"], epochs=10)
 ```
@@ -92,11 +100,12 @@ model.fit(ds["train"], epochs=10)
 The following block of code shows how to use make predictions and use Prepper's plot function. The plot function plots the actual values and the predicted values for each of the given offsets. We create a Prepper entity by passing in an entity ID and Prepper object. We can then use the entity's predict function, passing in our model, to make predictions. **It's important to note that the entity ID passed in when creating a Prepper entity object will tell Prepper to make predictions based off rows with the given entity ID.**
 
 ```python
+# How to choose entities to predict from here??
 e = Prepper.entity("AAPL", tfp)
 e.predict(model)
 e.plot()
 ```
-To create your own graphs or dive deeper into the predictions, we can use the entity object's predictions attribute. This will return a dictionary where the key is the predicted label, and the values are a list of a lists. Each inner list will be the predicted values for respective offsets. For our example, index 0 of an inner list corresponds to the prediction for a 1 day offset. Index 2 would correspond to a prediction for a 5 day offset. For the outer list, each index refers to a point in time. For example, index 0 would correspond to the list of predictions made at time t=0. The following line of code allows us to see the predictions dictionary.
+To create your own graphs or dive deeper into the predictions, we can use the entity object's predictions attribute. This will return a dictionary where the key is the predicted label, and the values are a list of a lists. Each inner list will be the predicted values for respective offsets. For our example, index 0 of an inner list corresponds to the prediction for a 3 day offset. Index 2 would correspond to a prediction for a 6 day offset. For the outer list, each index refers to a point in time. For example, index 0 would correspond to the list of predictions made at time t=0. The following line of code allows us to see the predictions dictionary.
 ```python
 e.predictions
 ```

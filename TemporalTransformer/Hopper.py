@@ -708,6 +708,15 @@ class dbms():
             data.append(_row)
             ids.append(_row[0])
 
+        if not dtm.table_config.has_times:
+            if dtm.table_config.foreign_key:
+                ids = [[_id] for _id in set(ids)]
+                self.mn_dtm.insert_data_into(ids, ignore=True, many=True)
+            dtm.insert_data_into(data, many=True)
+            dtm.lock()
+            print('%s rows loaded\n' %(len(data)))
+            return 0
+
         if hasTimestamps and step==0:
             temp_data = []
 
