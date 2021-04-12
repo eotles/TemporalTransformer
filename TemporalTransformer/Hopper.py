@@ -736,15 +736,14 @@ class dbms():
             for i in range(len(temp_data)-1):
                 if temp_data[i][0] == temp_data[i+1][0]:
                     temp_data[i][2] = temp_data[i+1][1]
-                    prev_step = temp_data[i][2] - temp_data[i][1]
+                    prev_step = float(temp_data[i][2]) - float(temp_data[i][1])
                 else:
-                    temp_data[i][2] = temp_data[i][1] + prev_step
-            temp_data[-1][2] = temp_data[-1][1] + prev_step
+                    temp_data[i][2] = float(temp_data[i][1]) + prev_step
+            temp_data[-1][2] = float(temp_data[-1][1]) + prev_step
             for i in range(len(temp_data)):
                 row_num = temp_data[i][3]
                 data[row_num][1] = temp_data[i][1]
                 data[row_num].insert(2, temp_data[i][2])
-            
 
         if hasTimestamps and step>0:
             for i in range(len(data)):
