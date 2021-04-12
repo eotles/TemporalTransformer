@@ -121,7 +121,7 @@ entities = [132588, 133166, 133588, 141068, 141510]
 for entity in entities:
     e = Prepper.entity(entity, tfp)
     e.predict(model)
-    e.ploty()
+    e.plot()
 ```
 To create your own graphs or dive deeper into the predictions, we can use the entity object's predictions attribute. This will return a dictionary where the key is the predicted label, and the values are a list of a lists. Each inner list will be the predicted values for respective offsets. For our example, index 0 of an inner list corresponds to the prediction for a 100 unit of time offset. Index 2 would correspond to a prediction for a 300 unit of time offset. For the outer list, each index refers to a point in time. For example, index 0 would correspond to the list of predictions made at time t=0. The following line of code allows us to see the predictions dictionary.
 ```python
