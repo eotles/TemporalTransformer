@@ -172,21 +172,22 @@ class tf_prepper():
     
         #TODO: investigate whether less mem usage if we use np
         #TODO: somehow getting values larger than duration
-        if st is None:
-            if type(val) == list:
-                self.base_data[idx][fn] = [val]*self.durations[idx]
-            else:
-                self.base_data[idx][fn] = [[val]]*self.durations[idx]
-        else:
-            st_index = self.st_conversion[st] - self.st_conversion[self.min_max_times[idx][0]]
-            try:
+        if idx in self.durations:
+            if st is None:
                 if type(val) == list:
-                    self.base_data[idx][fn][st_index] = val
+                    self.base_data[idx][fn] = [val]*self.durations[idx]
                 else:
-                    self.base_data[idx][fn][st_index] = [val]
-            except:
-                msg = "unable to put update base_data with (idx: %s, fn: %s, st: %s, val: %s)... hint duration[idx] is: %s" %(idx, fn, st, val, self.durations[idx])
-                warnings.warn(msg)
+                    self.base_data[idx][fn] = [[val] for _ in range(self.durations[idx])]
+            else:
+                st_index = self.st_conversion[st] - self.st_conversion[self.min_max_times[idx][0]]
+                try:
+                    if type(val) == list:
+                        self.base_data[idx][fn][st_index] = val
+                    else:
+                        self.base_data[idx][fn][st_index] = [val]
+                except:
+                    msg = "unable to put update base_data with (idx: %s, fn: %s, st: %s, val: %s)... hint duration[idx] is: %s" %(idx, fn, st, val, self.durations[idx])
+                    warnings.warn(msg)
             
     
     #TODO: input validation
@@ -571,8 +572,9 @@ class entity():
             plt.xlabel("Time")
 
             if self.model is not None:
+                _predictions_lb = self.predictions[lb].squeeze()
                 for i_o, o in enumerate(self.tfp.offsets):
-                    plt.plot(self.predictions[lb][:, i_o], label=o)
+                    plt.plot(_predictions_lb[:, i_o], label=o)
                 plt.legend(loc="upper left")
             plt.show()
             
