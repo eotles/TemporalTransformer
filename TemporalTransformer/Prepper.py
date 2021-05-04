@@ -561,20 +561,20 @@ class entity():
     
     def plot(self, ymin=-.05, ymax=1.05, xmin=None, xmax=None):
         for lb in self.tfp.label_fns:
-            plt.plot(self.groundTruth[lb], 'k')
-            plt.title("".format(lb))
+            plt.plot(self.groundTruth[lb], 'k', label="Actual")
+            # plt.title("".format(lb))
             plt.title("{}".format(self.idx), loc="left")
             plt.title("{}".format(lb), loc="right")
             plt.ylim([ymin, ymax])
             if xmin is not None and xmax is not None:
                 plt.xlim([xmin, xmax])
-            plt.ylabel("Estimated Probability")
+            plt.ylabel("Value")
             plt.xlabel("Time")
 
             if self.model is not None:
                 _predictions_lb = self.predictions[lb].squeeze()
                 for i_o, o in enumerate(self.tfp.offsets):
-                    plt.plot(_predictions_lb[:, i_o], label=o)
+                    plt.plot(_predictions_lb[:, i_o], label=f"Pred Offset: {o}")
                 plt.legend(loc="upper left")
             plt.show()
             

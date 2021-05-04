@@ -30,6 +30,7 @@ from datetime import *
 
 from . import sqlite_utils
 from . import sql_statements
+from . import other_utils
 
 class OperationalError(Exception):
     pass
@@ -39,25 +40,6 @@ class OperationalError(Exception):
 #TODO: generate method ot transform streaming data for use with learned model
 
 #TODO: check if normalizing with sqrt(var)
-
-def string_to_time(time):
-    if isinstance(time, int) or isinstance(time, float):
-        return time
-    
-    numbers = [int(word) for word in time.split() if word.isdigit()]
-    number = numbers[0]
-    if "second" in time:
-        return number
-    if "min" in time:
-        return number*60
-    if "h" in time:
-        return number*60*60
-    if "day" in time:
-        return number*86400
-    if "w" in time:
-        return number*86400*7
-    if "mon" in time:
-        return number*86400*30
 
 #TODO: move whole project to use these global variables
 pk_cn = "i_id" #primary key column name
@@ -463,11 +445,22 @@ class flow_view_manager():
                     fil_sql = sql_statements.filter_real_substatement
                     fil_sql = fil_sql.format(lb=lb, r_lb=f(lb), ub=ub, r_ub=f(ub+1), cn=cn)
                 
+                #Binary filtration has liability of flipping labels
+                #Randomly picks value then checks to see if every value is that or not
+                #Probably not wanted / intended
                 elif c_type == "bin":
                     #TODO: should we be using "n_total_cats"?
                     cat_list = c_fc["cat_list"]
                     cat = cat_list[0]
                     
+                    #Attempting to overcome label flipping issue
+                    if set(cat_list) == set((0,1)):
+                        cat = 1
+                    if set(cat_list) == set(('0','1')):
+                        cat = '1'
+
+
+
                     if len(cat_list)>2:
                         raise Warning("bin: %s, but has %s values" %(cn, len(cat_list)))
                     fil_sql = sql_statements.filter_bin_substatement
@@ -702,7 +695,8 @@ class dbms():
         ids = []
         step = 0
         if timestep is not None:
-            step = string_to_time(timestep)
+            # step = string_to_time(timestep)
+            step = other_utils.string_to_time(timestep)
         
         for _row in iterable_data:
             data.append(_row)
@@ -853,29 +847,11 @@ class dbms():
             fvm.create_partition_views(partitions, from_view=from_view)
 
 
-    def string_to_time(self, time):
-        if isinstance(time, int) or isinstance(time, float):
-            return time
-        
-        numbers = [int(word) for word in time.split() if word.isdigit()]
-        number = numbers[0]
-        if "second" in time:
-            return number
-        if "min" in time:
-            return number*60
-        if "h" in time:
-            return number*60*60
-        if "day" in time:
-            return number*86400
-        if "w" in time:
-            return number*86400*7
-        if "mon" in time:
-            return number*86400*30
-
     def set_relcal(self, dt=None):
-        dt_unix = self.string_to_time(dt)
-        print("dt was: ",dt)
-        print("dt_unix is: ", dt_unix)
+        # dt_unix = self.string_to_time(dt)
+        dt_unix = other_utils.string_to_time(dt)
+        # print("dt was: ",dt)
+        # print("dt_unix is: ", dt_unix)
         min_max_time_sql = sql_statements.min_max_time_sql
         ss = self._union_samples_sql().replace("\n", "\n\t")
         min_max_time_sql = min_max_time_sql.format(st_cn=st_cn, et_cn=et_cn,
