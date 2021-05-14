@@ -1,7 +1,6 @@
 (c) 2019-2021 The Regents of the University of Michigan
 Denton Lab - University of Michigan https://btdenton.engin.umich.edu/
 Designer: Erkin Ötleş
-Code Contributors: Maxwell Klaben
 
 # PolyForm Strict License 1.0.0
 
