@@ -207,7 +207,7 @@ class tf_prepper():
         
         windows_sql = select_cols_sql.format(cols="*", tn=Hopper.wn_tn)
         windows = self.cur_man.execute_fetchall(windows_sql)
-        print(windows)
+        # print(windows)
         #self.durations = {idx: et+1 for idx, _, et in windows}
         #NOTE: we are adding 1 to duration - do we need this?
         # self.durations = {idx: et for idx, _, et in windows} #this might fix it
@@ -216,7 +216,7 @@ class tf_prepper():
             self.durations[key] = self.st_conversion[self.min_max_times[key][1]] - self.st_conversion[self.min_max_times[key][0]] + 1
         self.idxs = list(self.durations.keys())
         self.base_data = {idx: {} for idx in self.idxs}
-        print("duration: ",self.durations,"\n indexes: ", self.idxs, "\n base_data: ", self.base_data)
+        # print("duration: ",self.durations,"\n indexes: ", self.idxs, "\n base_data: ", self.base_data)
         #idx & duration
         for idx, duration in self.durations.items():
             self.__update_base_data(idx, None, Hopper.pk_cn, idx, ignore_config=True)
@@ -329,8 +329,6 @@ class tf_prepper():
                  for partition, par_y_dss in y_dss.items()}
         y_padded_shapes = tuple(y_padded_shapes)
         
-        #merge
-        print("starting merge (295)")
         self.ds = {}
         for partition in partitions:
             par_x_ds = tf.data.Dataset.zip(x_dss[partition])
