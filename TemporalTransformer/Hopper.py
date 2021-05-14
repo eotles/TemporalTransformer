@@ -1,7 +1,8 @@
 '''
-Copyright (c) 2019-2020 Erkin Ötleş. ALL RIGHTS RESERVED.
-
-Unauthorized duplication and/or distribution prohibited. Proprietary and confidential.
+Copyright (c) 2019-2021 The Regents of the University of Michigan
+Denton Lab - University of Michigan https://btdenton.engin.umich.edu/
+Designer: Erkin Ötleş
+Code Contributor: Maxwell Klaben
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
