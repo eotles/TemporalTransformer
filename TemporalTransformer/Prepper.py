@@ -118,7 +118,6 @@ class tf_prepper():
         
         features = []
         config = {}
-        fn_lookup = {} #TODO: RM
         
         self.ignore_fns = [Hopper.pk_cn, dur_fn]
         for fn in self.ignore_fns:
@@ -127,7 +126,7 @@ class tf_prepper():
         
         for fvm in self.fvms:
             tc = fvm.get_partition_tc("nrm", partition=None)
-            tn = fvm.data_table_man.table_config.name
+            tn = fvm.dtm.table_config.name
             
             for cn, ctype in zip(tc.feature_names, tc.feature_types):
                 new_fn = self.fn_template.format(tn=tn, cn=cn)
@@ -136,7 +135,6 @@ class tf_prepper():
                 config[new_fn]["cn"] = cn
                 config[new_fn]["fvm"] = fvm
         
-        #TODO: test bringing back one level of tabbing
             self.features = features
             self.config = config
             
@@ -172,7 +170,6 @@ class tf_prepper():
             val = 0.0
     
         #TODO: investigate whether less mem usage if we use np
-        #TODO: somehow getting values larger than duration
         if idx in self.durations:
             if st is None:
                 if type(val) == list:
@@ -208,17 +205,11 @@ class tf_prepper():
         
         windows_sql = select_cols_sql.format(cols="*", tn=Hopper.wn_tn)
         windows = self.cur_man.execute_fetchall(windows_sql)
-        # print(windows)
-        #self.durations = {idx: et+1 for idx, _, et in windows}
-        #NOTE: we are adding 1 to duration - do we need this?
-        # self.durations = {idx: et for idx, _, et in windows} #this might fix it
         self.durations = {}
         for key in self.min_max_times:
             self.durations[key] = self.st_conversion[self.min_max_times[key][1]] - self.st_conversion[self.min_max_times[key][0]] + 1
         self.idxs = list(self.durations.keys())
         self.base_data = {idx: {} for idx in self.idxs}
-        # print("duration: ",self.durations,"\n indexes: ", self.idxs, "\n base_data: ", self.base_data)
-        #idx & duration
         for idx, duration in self.durations.items():
             self.__update_base_data(idx, None, Hopper.pk_cn, idx, ignore_config=True)
             self.__update_base_data(idx, None, dur_fn, duration, ignore_config=True)
@@ -226,7 +217,7 @@ class tf_prepper():
         
         for fvm in self.fvms:
             tc = fvm.view_tc[from_view]
-            tn = fvm.data_table_man.table_config.name
+            tn = fvm.dtm.table_config.name
             
             #prepare base_data[fn] for reception of new data
             for cn, ctype in zip(tc.feature_names, tc.feature_types):
@@ -306,7 +297,6 @@ class tf_prepper():
                     labels[idx][fn].append(l[o:] + [l[-1]]*o)
         self.labels = labels
         
-        # print("Successfully made it to line 269")
         y_dss = {partition: [] for partition in partitions}
         y_padded_shapes = []
         for label_fn in self.label_fns:
@@ -343,8 +333,6 @@ class tf_prepper():
         #TODO: should do some garbage collection
         return(self.ds)
         
-    #TODO: dropout_fns - update this with the code from the server (in peers_predictive.ipynb)
-    #TODO: update ablatte
     def build_input_model(self, cat=True,
                           ignore_fns=[], dropout_fns={}):
         inputs = {}
@@ -420,8 +408,6 @@ class tf_prepper():
         
     
     def get_specific_XY(self, idx):
-        #s_X = {fn: tf.convert_to_tensor([v])
-        #       for fn, v in self.base_data[idx].items()}
         s_X = {}
         for fn, v in self.base_data[idx].items():
             if fn == Hopper.pk_cn:
@@ -561,7 +547,6 @@ class entity():
     def plot(self, ymin=-.05, ymax=1.05, xmin=None, xmax=None):
         for lb in self.tfp.label_fns:
             plt.plot(self.groundTruth[lb], 'k', label="Actual")
-            # plt.title("".format(lb))
             plt.title("{}".format(self.idx), loc="left")
             plt.title("{}".format(lb), loc="right")
             plt.ylim([ymin, ymax])
@@ -578,7 +563,6 @@ class entity():
             plt.show()
             
     
-#TODO: graph axes should be static
 def roc_curves(ys, ps, ns, ws, coalate=True, lb=""):
     plt.figure()
     plt.plot([0, 1], [0, 1], "k:")
@@ -760,7 +744,6 @@ class population():
         #generate_comparison_sets
         real = {lb: {o: [] for o in self.tfp.offsets} for lb in self.tfp.label_fns}
         pred = {lb: {o: [] for o in self.tfp.offsets} for lb in self.tfp.label_fns}
-        #weights = {lb: {o: [] for o in self.tfp.offsets} for lb in self.tfp.label_fns}
         durs = {lb: {o: [] for o in self.tfp.offsets} for lb in self.tfp.label_fns}
 
         for idx, prediction in predictions.items():
@@ -775,10 +758,6 @@ class population():
                     _p = _p.tolist()[:len(_y)]
                     pred[lb][o] += _p
                     
-                    #if weight_fx:
-                    #    weights[lb][o] += [weight_fx(len(_y))]*len(_y)
-                    #else:
-                    #    weights[lb][o] += [1]*len(_y)
                     
                     durs[lb][o].append(len(_y))
                         
@@ -790,11 +769,8 @@ class population():
         self.predictions = predictions
         self.real = real
         self.pred = pred
-        #self.weights = weights
         self.durs = durs
         
-    #TODO:
-    #instead of saving weights in predict step - save the duration
     #create a function calculates weights based on duration
     def calc_weights(self, weight_fx):
         weights = {lb: {o: [] for o in self.tfp.offsets} for lb in self.tfp.label_fns}

@@ -21,6 +21,7 @@ import math
 
 #imports for unix time conversion, change from *
 import time
+#TODO Look into Non-star import (25-29)
 from dateutil.relativedelta import *
 from dateutil.easter import *
 from dateutil.rrule import *
@@ -51,10 +52,11 @@ wn_tn = "i_windows"
 pr_tn = "i_partitions"
 rc_tn = "i_relcal"
 
-#TODO: integrate the lone-wolf
+#TODO: ? integrate the lone-wolf ?
 pr_cn = 'partition'
 
 #TODO: check that is all good - seems outdated
+#TODO: Consider moving to sql_utils- table definition file
 column_types = ["ID", "real", "ldc", "hdc"]
 sql_column_type_lookup = {
     "ID": "TEXT NOT NULL",
@@ -78,6 +80,7 @@ this meta-data will be used by managers to actually do stuff
 #TODO: have reference to parent columns
 class table_config():
 
+    #TODO: Get column names from table definition
     pk_cn = "i_id" #primary key column name
     st_cn = "i_st"
     et_cn = "i_et"
@@ -96,7 +99,10 @@ class table_config():
         self.name = name
         
         #TODO: need to check feature_names, feature_types are the same size
-        
+        if len(feature_names) != len(feature_types):
+            msg = "Length of feature names ({}) and feature types ({}) are of different size"
+            raise ValueError(msg.format(len(feature_names), len(feature_types)))
+
         self.feature_names = feature_names
         self.feature_types = feature_types
 
@@ -105,7 +111,7 @@ class table_config():
         self.foreign_key = foreign_key
         self.is_view = is_view
         
-        #TODO: deprecate? What uses this>
+        #TODO: deprecate? What uses this: Erkin
         self.info = {"tn": name,
                      "pk_cn": self.pk_cn, "st_cn": self.st_cn, "et_cn": self.et_cn,
                      "mn_tn": self.mn_tn, "wn_tn": self.wn_tn, "pr_tn": self.pr_tn,
@@ -137,17 +143,18 @@ class table_config():
     def column_types(self):
         column_types = ["ID"]
         if self.has_times:
-            column_types += ["timestamp", "timestamp"]#unsure how/where it's processed, must be converted to unix first
+            column_types += ["timestamp", "timestamp"]
         column_types += self.feature_types
         return(column_types)
 
+    #TODO: Consider moving to sql_utils
     @property
     def column_sql_types(self):
         return get_SQLite_column_types(self.column_types)
     
         
     @property
-    def select_times_sql(self):#is this where timestamps are processed? convert to unix time here then select times before return
+    def select_times_sql(self):
         if self.has_times==False:
             raise OperationalError("cannot select times from table with has_times=False")
         
@@ -160,7 +167,7 @@ class table_config():
 this manager builds and loads the data tables
 these are the first tables in the flows
 '''
-#TODO: this should be called before the flow and actually passed to the flow to start it off
+#TODO: ?? this should be called before the flow and actually passed to the flow to start it off ??
 class data_table_manager():
     
     def __init__(self, table_config, cur_man, drop_if_exists=True):
@@ -179,7 +186,7 @@ class data_table_manager():
             drop_sql = sql_statements.drop_table_sql
             self.cur_man.execute_sql(drop_sql.format(**info))
         
-        col_spec_list = ['%s %s' %(n, t)#unsure exactly what's going on, seems like there may be changes here
+        col_spec_list = ['%s %s' %(n, t)
                          for n, t in zip(tc.column_names, tc.column_sql_types)]
         info["col_spec"] = ",\n\t".join(col_spec_list)
         create_sql = sql_statements.create_sql(primary_key=tc.primary_key,
@@ -200,7 +207,7 @@ class data_table_manager():
 
 
     def insert_from_sql_stmt(self, sql_substatement, ignore=False):
-        tc, info = self._get_info()
+        _, info = self._get_info()
         
         info["sql_substatement"] = sql_substatement.replace("\n", "\n\t")
         insert_sql = sql_statements.insert_from_sql_stmt_sql(ignore=ignore)
@@ -223,22 +230,21 @@ class data_table_manager():
 
 
 
-#TODO: the use of 'view' is confusing, use somthing like 'flow_step' or 'step'
+#TODO: the use of 'view' is confusing, use somthing like 'flow_step' or 'step': consider renaming to flow_step_manager
 class flow_view_manager():
 
     views = ["org", "win", "fil", "ohe", "agg", "nrm"]
     
     def __init__(self, tc, cur_man):
         self.tc = tc
-        #TODO: have this name be dtm
-        self.data_table_man = data_table_manager(tc, cur_man)
+        self.dtm = data_table_manager(tc, cur_man)
         self.cur_man = cur_man
         
         self.view_tc = {v: None for v in self.views}
-        self.view_tc["org"] = self.data_table_man.table_config
+        self.view_tc["org"] = self.dtm.table_config
         self.partition_tc = {v: None for v in self.views}
         
-        self.filter_config = None #added for saving functionality - may break stuff
+        self.filter_config = None
     
     @property
     def view_names(self):
@@ -246,7 +252,7 @@ class flow_view_manager():
                       for v, tc in self.view_tc.items()}
         return(view_names)
         
-    #TODO: has_times propoerty
+    #TODO: has_times propoerty: Erkin
         
     def get_tc(self, view):
         if view not in self.views:
@@ -314,7 +320,7 @@ class flow_view_manager():
         self.view_tc[new_view] = new_tc
        
     
-    def create_windows_view(self, from_view="org"):#unsure how window size is calculated
+    def create_windows_view(self, from_view="org"):
         def _win(cn, ctype):
             if cn in [pk_cn, st_cn, et_cn]:
                 return([], [])
@@ -446,15 +452,12 @@ class flow_view_manager():
                     fil_sql = sql_statements.filter_real_substatement
                     fil_sql = fil_sql.format(lb=lb, r_lb=f(lb), ub=ub, r_ub=f(ub+1), cn=cn)
                 
-                #Binary filtration has liability of flipping labels
-                #Randomly picks value then checks to see if every value is that or not
-                #Probably not wanted / intended
                 elif c_type == "bin":
                     #TODO: should we be using "n_total_cats"?
                     cat_list = c_fc["cat_list"]
                     cat = cat_list[0]
                     
-                    #Attempting to overcome label flipping issue
+                    # Overcome label flipping issue
                     if set(cat_list) == set((0,1)):
                         cat = 1
                     if set(cat_list) == set(('0','1')):
@@ -642,7 +645,7 @@ class dbms():
 
     pr_cn = 'partition'
 
-    def __init__(self, database=":memory:", verbose=True):#relcal and winodws changed here?
+    def __init__(self, database=":memory:", verbose=True):
         self.database = database
         self.verbose = verbose
 
@@ -691,12 +694,11 @@ class dbms():
         return curr_date_unix
 
     def _data_to_fvm(self, fvm, iterable_data, hasUnixTimes, hasTimestamps, timestep):
-        dtm = fvm.data_table_man
+        dtm = fvm.dtm
         data = []
         ids = []
         step = 0
         if timestep is not None:
-            # step = string_to_time(timestep)
             step = other_utils.string_to_time(timestep)
         
         for _row in iterable_data:
@@ -734,7 +736,10 @@ class dbms():
                     prev_step = float(temp_data[i][2]) - float(temp_data[i][1])
                 else:
                     temp_data[i][2] = float(temp_data[i][1]) + prev_step
-            temp_data[-1][2] = float(temp_data[-1][1]) + prev_step
+            ###TODO: Look into this again: Maybe a different value than 1, also go back and remove prev_step calculations
+            # temp_data[-1][2] = float(temp_data[-1][1]) + prev_step
+            temp_data[-1][2] = float(temp_data[-1][1]) + 1
+            ###
             for i in range(len(temp_data)):
                 row_num = temp_data[i][3]
                 data[row_num][1] = temp_data[i][1]
@@ -744,7 +749,7 @@ class dbms():
             for i in range(len(data)):
                 if not hasUnixTimes:
                     data[i][1] = self.to_unix_time(data[i][1])
-                end_date_unix = data[i][1] + step
+                end_date_unix = float(data[i][1]) + step
                 data[i].insert(2, end_date_unix)
             
         if not hasUnixTimes and not hasTimestamps:
@@ -762,7 +767,7 @@ class dbms():
         print('%s rows loaded\n' %(len(data)))
 
 
-    def _csv_to_fvm(self, fvm, csv_file, hasUnixTimes, hasTimestamps, timestep, dialect='excel', **fmtparams):#take into account hasUnixTimes
+    def _csv_to_fvm(self, fvm, csv_file, hasUnixTimes, hasTimestamps, timestep, dialect='excel', **fmtparams):
         with open(csv_file) as csv_file:
             data = csv.reader(csv_file, dialect=dialect, **fmtparams)
             self._data_to_fvm(fvm, data, hasUnixTimes, hasTimestamps, timestep)
@@ -773,9 +778,9 @@ class dbms():
         self._data_to_fvm(fvm, iterable_data, hasUnixTimes, hasTimestamps, timestep)
     
 
-    def create_fvm_with_csv(self, tc, csv_file, hasUnixTimes=True, hasTimestamps=False, timestep=None, dialect='excel', **fmtparams):#isUnixTimes=true/false
+    def create_fvm_with_csv(self, tc, csv_file, hasUnixTimes=True, hasTimestamps=False, timestep=None, dialect='excel', **fmtparams):
         fvm = self._create_fvm(tc)
-        self._csv_to_fvm(fvm, csv_file, hasUnixTimes, hasTimestamps, timestep, dialect='excel', **fmtparams)#isUnixTimes=true/false, actual change to csv happens here
+        self._csv_to_fvm(fvm, csv_file, hasUnixTimes, hasTimestamps, timestep, dialect='excel', **fmtparams)
         
 
     def _union_samples_sql(self):
@@ -818,7 +823,7 @@ class dbms():
             raise ValueError(msg)
 
         self.partitions = True
-        insert_sql = self.pr_dtm.insert_data_into(data, many=True)
+        self.pr_dtm.insert_data_into(data, many=True)
         
         if fill_remainder:
             partition_sql = sql_statements.partition_sql(partitions=partitions, p=p)
@@ -849,21 +854,16 @@ class dbms():
 
 
     def set_relcal(self, dt=None):
-        # dt_unix = self.string_to_time(dt)
         dt_unix = other_utils.string_to_time(dt)
-        # print("dt was: ",dt)
-        # print("dt_unix is: ", dt_unix)
         min_max_time_sql = sql_statements.min_max_time_sql
         ss = self._union_samples_sql().replace("\n", "\n\t")
         min_max_time_sql = min_max_time_sql.format(st_cn=st_cn, et_cn=et_cn,
                                                  sql_substatement=ss)
         min_rt, max_rt = self.cur_man.execute_fetchone(min_max_time_sql)
-        #rel_cal_data = [['None', i, i+1] for i in range(min_rt, max_rt+dt, dt)] #mod to ->
         rel_cal_data = [['None', i, i+dt_unix] for i in range(min_rt, max_rt+1, dt_unix)]
         self.rc_dtm.insert_data_into(rel_cal_data, many=True)
         self.relcal_set = True
 
-        # self.tst
 
 
     def fit_filter(self, partition=None, percentile_cutoff=0.01):
@@ -875,7 +875,6 @@ class dbms():
         if self.relcal_set == False:
             msg = "set_relcal() has not been called, aggregation can't be conducted."
             raise OperationalError(msg)
-            relcal_tn = None
         else:
             relcal_tn = self.rc_tc.name
         
@@ -910,8 +909,8 @@ class dbms():
             fvm.create_partition_views(partitions, from_view=from_view)
         
     
-    #TODO: duplicate call issue: start checking if windows set already
-    def dew_it(self, after_first=None, before_last=None,
+    #TODO: duplicate call issue: start checking if windows set already: Erkin
+    def transform(self, after_first=None, before_last=None,
                default_first=None, default_last=None,
                fit_normalization_via_sql_qds=True, dt=None):
         if not self.windows:
