@@ -14,6 +14,7 @@ SOFTWARE.
 '''
 
 def string_to_time(time):
+    """TEMP DOCSTRING."""
     if isinstance(time, int) or isinstance(time, float):
         return time
     

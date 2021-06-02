@@ -15,6 +15,7 @@ SOFTWARE.
 
 
 def create_sql(primary_key=True, foreign_key=True):
+    """TEMP DOCSTRING."""
     col_spec = "{col_spec}"
     if primary_key:
         col_spec += ",\n\tPRIMARY KEY ({pk_cn})"
@@ -25,11 +26,13 @@ def create_sql(primary_key=True, foreign_key=True):
     return(create_sql)
 
 def insert_sql(ignore=False):
+    """TEMP DOCSTRING."""
     ignore_spec = "OR IGNORE" if ignore else ""
     insert_sql = """INSERT %s INTO {tn} ({col_names}) VALUES ({questions});\n""" %(ignore_spec)
     return(insert_sql)
 
 def insert_from_sql_stmt_sql(ignore=False):
+    """TEMP DOCSTRING."""
     ignore_spec = "OR IGNORE" if ignore else ""
     insert_sql = """INSERT %s INTO {tn} \nSELECT * FROM (\n\t{sql_substatement}\n);\n""" %(ignore_spec)
     return(insert_sql)
@@ -159,6 +162,7 @@ sql_substatements_lookup = {"real": aggregate_real_substatements,
                             "hdc": aggregate_hdc_substatements}
 
 def aggregrate_cns_sqls(cn, tn, type):
+    """TEMP DOCSTRING."""
     sql_substatements = sql_substatements_lookup[type]
     new_cns = []
     col_sqls = []
@@ -198,6 +202,7 @@ select_times_sql = select_cols_sql.format(cols="{pk_cn}, {st_cn}, {et_cn}",
 
 #DBMS
 def union_select_sample_times_sql(tcs):
+    """TEMP DOCSTRING."""
     select_times_sqls = [tc.select_times_sql.replace(";\n", '') for tc in tcs]
     union_select_sample_times_sql = "UNION\n\t".join(select_times_sqls)
     return(union_select_sample_times_sql)
@@ -217,6 +222,7 @@ GROUP BY {pk_cn};
 #if both provided, range: min+after_first -> max-before_last
 def gen_range_table_sql(after_first=None, before_last=None,
                         default_first=None, default_last=None):
+    """TEMP DOCSTRING."""
     print("gen_range_table_sql called: af=%s, bf=%s" %(after_first, before_last))
     
     l = "MIN({st_cn})" if default_first is None else default_first
@@ -239,6 +245,7 @@ uniform_rv_sql = \
 
 
 def partition_sql(partitions, p):
+    """TEMP DOCSTRING."""
     cdf = 0
     rpt_sql = """SELECT {pk_cn}, CASE \n"""
     for partition_name, partition_p in zip(partitions, p):

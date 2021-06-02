@@ -17,41 +17,51 @@ SOFTWARE.
 import sqlite3
 
 class cursor_manager():
+    """TEMP DOCSTRING."""
     def __init__(self, cur, verbose=True):
         self.cur = cur
         self.verbose = verbose
         
     def interactive_session(self):
+        """TEMP DOCSTRING."""
         interactive_session(self.cur)
     
     def execute_sql(self, sql_stmt, param=None, many=False):
+        """TEMP DOCSTRING."""
         execute_sql(self.cur, sql_stmt,
                     verbose=self.verbose, param=param, many=many)
     
     def fetchone(self):
+        """TEMP DOCSTRING."""
         return self.cur.fetchone()
         
     def execute_fetchone(self, sql_stmt):
+        """TEMP DOCSTRING."""
         self.execute_sql(sql_stmt)
         return(self.fetchone())
         
     def fetchmany(self, size=100):
+        """TEMP DOCSTRING."""
         return(self.cur.fetchmany(size))
         
     def execute_fetchmany(self, sql_stmt, size=100):
+        """TEMP DOCSTRING."""
         self.execute_sql(sql_stmt)
         return(self.fetchmany(size))
         
     def fetchall(self):
+        """TEMP DOCSTRING."""
         return self.cur.fetchall()
         
     def execute_fetchall(self, sql_stmt):
+        """TEMP DOCSTRING."""
         self.execute_sql(sql_stmt)
         return(self.fetchall())
         
     def execute_tiered_query(self, tn, col_names, query_dict_stack,
                              results={},
                              select_sql="""SELECT {cols} \nFROM {tn};\n"""):
+        """TEMP DOCSTRING."""
         if len(query_dict_stack)<1:
             return(results)
         
@@ -72,6 +82,7 @@ class cursor_manager():
         
         #read results
         for val, (cn, query_name) in zip(query_res, col_query):
+            """TEMP DOCSTRING."""
             results[cn][query_name] = val
         
         return(self.execute_tiered_query(tn, col_names, query_dict_stack[1:],
@@ -81,6 +92,7 @@ class cursor_manager():
 
 
 def interactive_session(cur):
+    """TEMP DOCSTRING."""
     print("Enter your SQL commands to execute in sqlite3.")
     print("Enter a blank line to exit.")
 
@@ -104,6 +116,7 @@ def interactive_session(cur):
             buffer = ""
             
 def execute_sql(cur, sql_stmt, verbose=True, param=None, many=False):
+    """TEMP DOCSTRING."""
     sql_stmt = sql_stmt.replace("--", "+")
     if verbose:
         print(sql_stmt)

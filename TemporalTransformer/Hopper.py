@@ -73,12 +73,10 @@ def get_SQLite_column_types(column_types):
         SQLite_column_types.append(sql_column_type_lookup[column_type])
     return(SQLite_column_types)
 
-'''
-this class should only contain meta-data about tables/views
-this meta-data will be used by managers to actually do stuff
-'''
+
 #TODO: have reference to parent columns
 class table_config():
+    """TEMP DOCSTRING."""
 
     #TODO: Get column names from table definition
     pk_cn = "i_id" #primary key column name
@@ -91,6 +89,7 @@ class table_config():
 
     @classmethod
     def create_mn(cls):
+        """TEMP DOCSTRING."""
         return(cls(cls.mn_tn, [], [], primary_key=True, foreign_key=False))
 
     def __init__(self, name, feature_names, feature_types,
@@ -119,6 +118,7 @@ class table_config():
     
     #TODO: consider changing to JSON
     def _get_save_dict(self):
+        """TEMP DOCSTRING."""
         var_dict = vars(self)
         keep_var = ["name", "feature_names", "feature_types",
                     "has_times", "primary_key", "foreign_key", "is_view"]
@@ -128,11 +128,13 @@ class table_config():
     #TODO: consider changing to JSON
     @classmethod
     def load_save_dict(cls, save_dict):
+        """TEMP DOCSTRING."""
         return(cls(**save_dict))
     
 
     @property
     def column_names(self):
+        """TEMP DOCSTRING."""
         column_names = [self.pk_cn]
         if self.has_times:
             column_names += [self.st_cn, self.et_cn]
@@ -141,6 +143,7 @@ class table_config():
 
     @property
     def column_types(self):
+        """TEMP DOCSTRING."""
         column_types = ["ID"]
         if self.has_times:
             column_types += ["timestamp", "timestamp"]
@@ -150,11 +153,13 @@ class table_config():
     #TODO: Consider moving to sql_utils
     @property
     def column_sql_types(self):
+        """TEMP DOCSTRING."""
         return get_SQLite_column_types(self.column_types)
     
         
     @property
     def select_times_sql(self):
+        """TEMP DOCSTRING."""
         if self.has_times==False:
             raise OperationalError("cannot select times from table with has_times=False")
         
@@ -169,6 +174,7 @@ these are the first tables in the flows
 '''
 #TODO: ?? this should be called before the flow and actually passed to the flow to start it off ??
 class data_table_manager():
+    """TEMP DOCSTRING."""
     
     def __init__(self, table_config, cur_man, drop_if_exists=True):
         self.table_config = table_config
@@ -177,9 +183,11 @@ class data_table_manager():
         
         
     def _get_info(self):
+        """TEMP DOCSTRING."""
         return(self.table_config, self.table_config.info)
         
     def _create_table(self, drop_if_exists=True):
+        """TEMP DOCSTRING."""
         tc, info = self._get_info()
         
         if drop_if_exists:
@@ -196,6 +204,7 @@ class data_table_manager():
 
 
     def insert_data_into(self, row_data, ignore=False, many=False):
+        """TEMP DOCSTRING."""
         tc, info = self._get_info()
         
         info["col_names"] = ", ".join(tc.column_names)
@@ -207,6 +216,7 @@ class data_table_manager():
 
 
     def insert_from_sql_stmt(self, sql_substatement, ignore=False):
+        """TEMP DOCSTRING."""
         _, info = self._get_info()
         
         info["sql_substatement"] = sql_substatement.replace("\n", "\n\t")
@@ -216,6 +226,7 @@ class data_table_manager():
     
     #TODO: prevent insertion when locked
     def lock(self, index=True):
+        """TEMP DOCSTRING."""
         self.locked = True
         tc = self.table_config
         tn = tc.name
@@ -232,6 +243,7 @@ class data_table_manager():
 
 #TODO: the use of 'view' is confusing, use somthing like 'flow_step' or 'step': consider renaming to flow_step_manager
 class flow_view_manager():
+    """TEMP DOCSTRING."""
 
     views = ["org", "win", "fil", "ohe", "agg", "nrm"]
     
@@ -248,6 +260,7 @@ class flow_view_manager():
     
     @property
     def view_names(self):
+        """TEMP DOCSTRING."""
         view_names = {v: tc.name if tc is not None else None
                       for v, tc in self.view_tc.items()}
         return(view_names)
@@ -255,6 +268,7 @@ class flow_view_manager():
     #TODO: has_times propoerty: Erkin
         
     def get_tc(self, view):
+        """TEMP DOCSTRING."""
         if view not in self.views:
             msg = "%s not valid view for flow_view_manager, use the following: %s"
             msg = msg %(view, self.views)
@@ -266,10 +280,12 @@ class flow_view_manager():
         return(tc)
     
     def get_view_name(self, view):
+        """TEMP DOCSTRING."""
         return(self.get_tc(view).name)
     
     
     def _gen_new_col_info(self, from_tc, func):
+        """TEMP DOCSTRING."""
     #TODO it might be helpful to have this function operate over columns or features
     #allowing skipping of fixed columns (NOTE A)
     #dependent stuff
@@ -298,6 +314,7 @@ class flow_view_manager():
     def _create_view(self, from_tc, new_view, new_col_info,
                       sql_substatement=sql_statements.select_cols_sql,
                       create_view_sql=sql_statements.create_view_sql):
+        """TEMP DOCSTRING."""
         #TODO: generalization
         #can we extend this? or move it to the sql_statements file?
         par_cns = new_col_info["parents"]
@@ -321,6 +338,7 @@ class flow_view_manager():
        
     
     def create_windows_view(self, from_view="org"):
+        """TEMP DOCSTRING."""
         def _win(cn, ctype):
             if cn in [pk_cn, st_cn, et_cn]:
                 return([], [])
@@ -339,7 +357,7 @@ class flow_view_manager():
 
 
     def create_partition_views(self, partitions, from_view=None):
-    
+        """TEMP DOCSTRING."""
         def _par(cn, ctype):
             if cn in [pk_cn, st_cn, et_cn]:
                 return([], [])
@@ -367,6 +385,7 @@ class flow_view_manager():
     
     
     def get_partition_tc(self, from_view, partition=None):
+        """TEMP DOCSTRING."""
         if partition is None:
             tc = self.get_tc(from_view)
         else:
@@ -376,6 +395,7 @@ class flow_view_manager():
 
 
     def fit_filter(self, partition=None, percentile_cutoff=0.01, from_view="org"):
+        """TEMP DOCSTRING."""
         #TODO: each column is being evaluated seperately,
         #would it be more efficient to do all the columns together?
         #see how normalization does it
@@ -437,6 +457,7 @@ class flow_view_manager():
         
         
     def create_filter_view(self, from_view="org"):
+        """TEMP DOCSTRING."""
         from_view = "win" if self.tc.has_times else "org"
     
         #TODO: could use ctype - instead of lookup
@@ -492,6 +513,7 @@ class flow_view_manager():
     
     
     def create_onehot_view(self, from_view="fil"):
+        """TEMP DOCSTRING."""
         def _ohe(cn, ctype):
             new_cns = [cn]
             col_sqls = [cn]
@@ -515,6 +537,7 @@ class flow_view_manager():
 
 
     def create_aggregate_view(self, from_view="ohe"):
+        """TEMP DOCSTRING."""
         from_tc = self.get_tc(from_view)
         tn= from_tc.name
             
@@ -553,6 +576,7 @@ class flow_view_manager():
         
         
     def fit_normalization(self, partition=None, from_view="ohe", via_sql_qds=True):
+        """TEMP DOCSTRING."""
         from_view = "agg" if self.tc.has_times else "ohe"
         
         tc = self.get_tc(from_view)
@@ -608,6 +632,7 @@ class flow_view_manager():
 
 
     def create_normalized_view(self, from_view="ohe"):
+        """TEMP DOCSTRING."""
         from_view = "agg" if self.tc.has_times else "ohe"
     
         def _nrm(cn, ctype):
@@ -642,6 +667,7 @@ manages all the sets of data simulatenously
 '''
 
 class dbms():
+    """TEMP DOCSTRING."""
 
     pr_cn = 'partition'
 
@@ -674,26 +700,31 @@ class dbms():
         
     @property
     def sample_fvms(self):
+        """TEMP DOCSTRING."""
         sample_fvms = [fvm for fvm in self.fvms if fvm.tc.has_times]
         return(sample_fvms)
         
     @property
     def fvm_lookup(self):
+        """TEMP DOCSTRING."""
         fvm_lookup = {fvm.tc.name: fvm for fvm in self.fvms}
         return(fvm_lookup)
 
 
     def _create_fvm(self, tc):
+        """TEMP DOCSTRING."""
         fvm = flow_view_manager(tc, self.cur_man)
         self.fvms.append(fvm)
         return(fvm) 
 
     def to_unix_time(self, date):
+        """TEMP DOCSTRING."""
         curr_date = parse(date)
         curr_date_unix = (curr_date - datetime(1970,1,1)).total_seconds()
         return curr_date_unix
 
     def _data_to_fvm(self, fvm, iterable_data, hasUnixTimes, hasTimestamps, timestep):
+        """TEMP DOCSTRING."""
         dtm = fvm.dtm
         data = []
         ids = []
@@ -768,22 +799,26 @@ class dbms():
 
 
     def _csv_to_fvm(self, fvm, csv_file, hasUnixTimes, hasTimestamps, timestep, dialect='excel', **fmtparams):
+        """TEMP DOCSTRING."""
         with open(csv_file) as csv_file:
             data = csv.reader(csv_file, dialect=dialect, **fmtparams)
             self._data_to_fvm(fvm, data, hasUnixTimes, hasTimestamps, timestep)
         
     #TODO: fix iterable data
     def create_fvm_with_data(self, tc, iterable_data, hasUnixTimes, hasTimestamps, timestep=None):
+        """TEMP DOCSTRING."""
         fvm = self._create_fvm(tc)
         self._data_to_fvm(fvm, iterable_data, hasUnixTimes, hasTimestamps, timestep)
     
 
     def create_fvm_with_csv(self, tc, csv_file, hasUnixTimes=True, hasTimestamps=False, timestep=None, dialect='excel', **fmtparams):
+        """TEMP DOCSTRING."""
         fvm = self._create_fvm(tc)
         self._csv_to_fvm(fvm, csv_file, hasUnixTimes, hasTimestamps, timestep, dialect='excel', **fmtparams)
         
 
     def _union_samples_sql(self):
+        """TEMP DOCSTRING."""
         sample_tcs = [fvm.tc for fvm in self.sample_fvms]
         return(sql_statements.union_select_sample_times_sql(sample_tcs))
 
@@ -791,7 +826,7 @@ class dbms():
     def set_windows(self, data, fill_remainder=True,
                     after_first=None, before_last=None,
                     default_first=None, default_last=None):#after/default first/last affected
-
+        """TEMP DOCSTRING."""
         self.windows = True
         self.wn_dtm.insert_data_into(data, many=True)
         if fill_remainder:
@@ -807,6 +842,7 @@ class dbms():
 
 
     def create_windows_views(self):
+        """TEMP DOCSTRING."""
         if self.windows == False:
             raise OperationalError("set_windows has not been called yet")
 
@@ -817,6 +853,7 @@ class dbms():
     #dev and test
     def set_partitions(self, data, fill_remainder=True,
                        partitions=["train", "dev", "test"], p=[0.8, 0.1, 0.1]):
+        """TEMP DOCSTRING."""
         if len(partitions) != len(p):
             msg = "partitions size (%s) != p size (%s)"
             msg = msg %(len(partitions), len(p))
@@ -833,6 +870,7 @@ class dbms():
             
 
     def _get_partitions(self):
+        """TEMP DOCSTRING."""
         if self.partitions == False:
             raise OperationalError("set_partitions has not been called yet")
 
@@ -847,6 +885,7 @@ class dbms():
 
 
     def create_partition_views_prior_to_filter(self):
+        """TEMP DOCSTRING."""
         partitions = self._get_partitions()
         for fvm in self.fvms:
             from_view = "win" if fvm.tc.has_times else "org"
@@ -854,6 +893,7 @@ class dbms():
 
 
     def set_relcal(self, dt=None):
+        """TEMP DOCSTRING."""
         dt_unix = other_utils.string_to_time(dt)
         min_max_time_sql = sql_statements.min_max_time_sql
         ss = self._union_samples_sql().replace("\n", "\n\t")
@@ -867,11 +907,13 @@ class dbms():
 
 
     def fit_filter(self, partition=None, percentile_cutoff=0.01):
+        """TEMP DOCSTRING."""
         for fvm in self.fvms:
             fvm.fit_filter(partition=partition, percentile_cutoff=percentile_cutoff)
 
 
     def fil_agg(self, channels=5):
+        """TEMP DOCSTRING."""
         if self.relcal_set == False:
             msg = "set_relcal() has not been called, aggregation can't be conducted."
             raise OperationalError(msg)
@@ -886,6 +928,7 @@ class dbms():
 
 
     def create_partition_views_prior_to_normalization(self):
+        """TEMP DOCSTRING."""
         partitions = self._get_partitions()
         for fvm in self.fvms:
             from_view = "agg" if fvm.tc.has_times else "ohe"
@@ -893,16 +936,19 @@ class dbms():
 
     #TODO: consider renaming to fit_normalize
     def fit_normalization(self, from_view=None, partition=None, percentile_cutoff=0.01, via_sql_qds=True):
+        """TEMP DOCSTRING."""
         for fvm in self.fvms:
             fvm.fit_normalization(partition=partition, via_sql_qds=via_sql_qds)
     
     
     def normalize(self):
+        """TEMP DOCSTRING."""
         for fvm in self.fvms:
             fvm.create_normalized_view()
             
             
     def create_final_partition_views(self):
+        """TEMP DOCSTRING."""
         partitions = self._get_partitions()
         for fvm in self.fvms:
             from_view = "nrm"
@@ -913,6 +959,7 @@ class dbms():
     def transform(self, after_first=None, before_last=None,
                default_first=None, default_last=None,
                fit_normalization_via_sql_qds=True, dt=None):
+        """TEMP DOCSTRING."""
         if not self.windows:
             self.set_windows(data=[],
                              after_first=after_first,
@@ -936,10 +983,12 @@ class dbms():
         
     
     def execute(self, sql_stmt, size=100):
+        """TEMP DOCSTRING."""
         res = self.cur_man.execute_fetchmany(sql_stmt, size=size)
         for row in res:
             print(row)
 
 
     def interactive_session(self):
+        """TEMP DOCSTRING."""
         sqlite_utils.interactive_session(self.cur)

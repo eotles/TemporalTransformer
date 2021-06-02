@@ -40,6 +40,7 @@ select_cols_sql = sql_statements.select_cols_sql
 
 
 def tokenize_and_sample(obs_str, tokenizer, channels=1):
+    """TEMP DOCSTRING."""
     obs = tokenizer.texts_to_sequences([obs_str])[0]
 
     if len(obs) <= channels:
@@ -55,13 +56,16 @@ def tokenize_and_sample(obs_str, tokenizer, channels=1):
 
 #makes data generation function from feature column data (rows per idx)
 def make_data_gen(fn_data):
+    """TEMP DOCSTRING."""
     return(lambda: iter(fn_data))
 
 @tf.function
 def expand(x):
+    """TEMP DOCSTRING."""
     return tf.expand_dims(x, axis = -1)
 
 def create_time_tables(dbms):
+    """TEMP DOCSTRING."""
     nrm_names = []
     for fvm in dbms.fvms:
         if fvm.tc.has_times:
@@ -96,6 +100,7 @@ def create_time_tables(dbms):
     return st_to_index, min_max_times
 
 class tf_prepper():
+    """TEMP DOCSTRING."""
 
     fn_template = "{tn}/{cn}"
 
@@ -140,6 +145,7 @@ class tf_prepper():
             
             
     def _fit_tokenizers(self, partition=None, no_time_channels=1, has_time_hdc_channels=5):
+        """TEMP DOCSTRING."""
         from_view = "nrm"
         
         for fn, fn_config in self.config.items():
@@ -158,6 +164,7 @@ class tf_prepper():
                 
     
     def __update_base_data(self, idx, st, fn, val, ignore_config=False):
+        """TEMP DOCSTRING."""
         if not ignore_config:
             ctype = self.config[fn]["type"]
             
@@ -191,7 +198,7 @@ class tf_prepper():
     #TODO: input validation
     def fit(self, partition=None, no_time_channels=1, has_time_hdc_channels=5,
             offsets = [], label_fns = [], ignore_fns = []):
-            
+        """TEMP DOCSTRING."""
         self.has_time_hdc_channels = has_time_hdc_channels
         self._fit_tokenizers(partition=partition, no_time_channels=1, has_time_hdc_channels=5)
         
@@ -201,6 +208,7 @@ class tf_prepper():
     
     
     def _form_base_data(self):
+        """TEMP DOCSTRING."""
         from_view = "nrm"
         
         windows_sql = select_cols_sql.format(cols="*", tn=Hopper.wn_tn)
@@ -243,6 +251,7 @@ class tf_prepper():
     
     
     def transform_to_ds(self, buffer_size=1000, batch_size=64):
+        """TEMP DOCSTRING."""
         self._form_base_data()
         
         partition_table = self.cur_man.execute_fetchall(select_cols_sql.format(cols="*", tn=Hopper.pr_tn))
@@ -257,7 +266,7 @@ class tf_prepper():
         x_padded_shapes = {}
         
         for fn in self.features:
-            print("X datasets: ", fn)
+            # print("X datasets: ", fn)
 
             fn_data = {partition: [] for partition in partitions}
             for idx, idx_data in self.base_data.items():
@@ -287,7 +296,7 @@ class tf_prepper():
         
         labels = {idx: {} for idx in self.idxs}
         for idx, idx_data in self.base_data.items():
-            print("Y datasets idx: ", idx)
+            # print("Y datasets idx: ", idx)
             for fn in self.label_fns:
                 labels[idx][fn] = []
                 for offset in self.offsets:
@@ -335,6 +344,7 @@ class tf_prepper():
         
     def build_input_model(self, cat=True,
                           ignore_fns=[], dropout_fns={}):
+        """TEMP DOCSTRING."""
         inputs = {}
         outputs = {}
         
@@ -378,6 +388,7 @@ class tf_prepper():
 
 
     def build_output_layers(self, activation="sigmoid"):
+        """TEMP DOCSTRING."""
         output_layers = []
         for label_fn in self.label_fns:
             output_layers.append(tf.keras.layers.Dense(units=len(self.offsets),
@@ -388,6 +399,7 @@ class tf_prepper():
        
     def build_model(self, middle_layer_list=None, cat=True,
                     ignore_fns=[], dropout_fns={}, activation="sigmoid"):
+        """TEMP DOCSTRING."""
         input_model = self.build_input_model(cat=cat, ignore_fns=ignore_fns,
                                              dropout_fns=dropout_fns)
         output_layers = self.build_output_layers(activation=activation)
@@ -408,6 +420,7 @@ class tf_prepper():
         
     
     def get_specific_XY(self, idx):
+        """TEMP DOCSTRING."""
         s_X = {}
         for fn, v in self.base_data[idx].items():
             if fn == Hopper.pk_cn:
@@ -425,6 +438,7 @@ class tf_prepper():
         
     
     def inverse_transform(self, fn, val):
+        """TEMP DOCSTRING."""
         fn_config = self.config[fn]
         fn_type = fn_config["type"]
         
@@ -459,7 +473,7 @@ class tf_prepper():
 
 
 class entity():
-
+    """TEMP DOCSTRING."""
     def __init__(self, idx, tfp, model=None):
         s_X, s_Y = tfp.get_specific_XY(idx)
         
@@ -511,6 +525,7 @@ class entity():
 
         
     def predict(self, model):
+        """TEMP DOCSTRING."""
         self.model = model
         
         s_Y_hat = model.predict(self.s_X)
@@ -526,7 +541,7 @@ class entity():
         
 
     def print_labels(self):
-        
+        """TEMP DOCSTRING."""
         for lb in self.tfp.label_fns:
             print("{}: {}".format(self.idx, lb))
             
@@ -545,6 +560,7 @@ class entity():
         
     
     def plot(self, ymin=-.05, ymax=1.05, xmin=None, xmax=None):
+        """TEMP DOCSTRING."""
         for lb in self.tfp.label_fns:
             plt.plot(self.groundTruth[lb], 'k', label="Actual")
             plt.title("{}".format(self.idx), loc="left")
@@ -564,6 +580,7 @@ class entity():
             
     
 def roc_curves(ys, ps, ns, ws, coalate=True, lb=""):
+    """TEMP DOCSTRING."""
     plt.figure()
     plt.plot([0, 1], [0, 1], "k:")
     
@@ -596,6 +613,7 @@ def roc_curves(ys, ps, ns, ws, coalate=True, lb=""):
 
 
 def pr_curves(ys, ps, ns, ws, coalate=True, lb=""):
+    """TEMP DOCSTRING."""
     plt.figure()
 
     label_template = "{} (AUC: {:.3f})"
@@ -628,6 +646,7 @@ def pr_curves(ys, ps, ns, ws, coalate=True, lb=""):
 
 def _cc_helper(y, p, n, w, ax1, ax2, lb="", color=None, n_bins=10,
                hist_density=True, quantile=False):
+    """TEMP DOCSTRING."""
     label_template = "{} (BS: {:.3f})"
     
     pr = [round(_) for _ in p]
@@ -664,7 +683,7 @@ def _cc_helper(y, p, n, w, ax1, ax2, lb="", color=None, n_bins=10,
 #https://scikit-learn.org/stable/auto_examples/calibration/plot_calibration_curve.html#sphx-glr-auto-examples-calibration-plot-calibration-curve-py
 def calibration_curves(ys, ps, ns, ws, coalate=True, lb="", n_bins=10,
                        hist_density=True, quantile=False):
-                       
+    """TEMP DOCSTRING."""
     print(n_bins, quantile)
     
     fig = plt.figure(figsize=(10, 10))
@@ -701,7 +720,7 @@ def calibration_curves(ys, ps, ns, ws, coalate=True, lb="", n_bins=10,
     
 
 class population():
-
+    """TEMP DOCSTRING."""
     def __init__(self, ds, tfp, model=None, weight_fx=None):
         self.ds = ds
         self.tfp = tfp
@@ -714,6 +733,7 @@ class population():
             self.calc_weights(lambda x: 1)
         
     def predict(self, model, weight_fx=None):
+        """TEMP DOCSTRING."""
         self.model = model
         
         sys.stdout.write("Init")
@@ -773,6 +793,7 @@ class population():
         
     #create a function calculates weights based on duration
     def calc_weights(self, weight_fx):
+        """TEMP DOCSTRING."""
         weights = {lb: {o: [] for o in self.tfp.offsets} for lb in self.tfp.label_fns}
         
         for lb in self.tfp.label_fns:
@@ -786,7 +807,7 @@ class population():
         
         
     def _run_graph_functions(self, graph_fx, coalate=True, weights=None, **kwargs):
-
+        """TEMP DOCSTRING."""
         for lb in self.tfp.label_fns:
             ys = []
             ps = []
@@ -802,13 +823,16 @@ class population():
             
 
     def roc_curves(self, coalate=True):
+        """TEMP DOCSTRING."""
         self._run_graph_functions(roc_curves, coalate=coalate)
         
         
     def pr_curves(self, coalate=True):
+        """TEMP DOCSTRING."""
         self._run_graph_functions(pr_curves, coalate)
         
 
     def calibration_curves(self, coalate=True, **kwargs):
+        """TEMP DOCSTRING."""
         self._run_graph_functions(calibration_curves, coalate=coalate, **kwargs)
 
