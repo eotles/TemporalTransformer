@@ -289,25 +289,25 @@ class flow_view_manager():
     #TODO it might be helpful to have this function operate over columns or features
     #allowing skipping of fixed columns (NOTE A)
     #dependent stuff
-       par_cns = []
-       new_cns = []
-       new_sqls = []
-       new_types = []
-       for cn, ctype in zip(from_tc.column_names, from_tc.column_types):
-           tmp_new_cns, tmp_new_sqls = func(cn, ctype)
-           new_sqls += tmp_new_sqls
-           
-           if cn not in [table_config.pk_cn, table_config.st_cn, table_config.et_cn]:
-               par_cns += [cn]*len(tmp_new_cns)
-               new_cns += tmp_new_cns
-               new_types += [ctype]*len(tmp_new_cns)
-       
-       new_col_info = {"sqls": new_sqls,
-                       "names": new_cns,
-                       "types": new_types,
-                       "parents": par_cns}
-                       
-       return(new_col_info)
+        par_cns = []
+        new_cns = []
+        new_sqls = []
+        new_types = []
+        for cn, ctype in zip(from_tc.column_names, from_tc.column_types):
+            tmp_new_cns, tmp_new_sqls = func(cn, ctype)
+            new_sqls += tmp_new_sqls
+            
+            if cn not in [table_config.pk_cn, table_config.st_cn, table_config.et_cn]:
+                par_cns += [cn]*len(tmp_new_cns)
+                new_cns += tmp_new_cns
+                new_types += [ctype]*len(tmp_new_cns)
+        
+        new_col_info = {"sqls": new_sqls,
+                        "names": new_cns,
+                        "types": new_types,
+                        "parents": par_cns}
+                        
+        return(new_col_info)
 
 
 
