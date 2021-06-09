@@ -200,7 +200,7 @@ class tf_prepper():
             offsets = [], label_fns = [], ignore_fns = []):
         """TEMP DOCSTRING."""
         self.has_time_hdc_channels = has_time_hdc_channels
-        self._fit_tokenizers(partition=partition, no_time_channels=1, has_time_hdc_channels=5)
+        self._fit_tokenizers(partition=partition, no_time_channels=no_time_channels, has_time_hdc_channels=has_time_hdc_channels)
         
         self.offsets = offsets
         self.label_fns = label_fns
